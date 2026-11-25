@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HopAlong launcher icon as a vector drawable.
+     The mipmap PNG icons never made it into the repo (binary files can't be
+     pushed through the GitHub App API), which broke CI with
+     "AAPT: error: resource mipmap/ic_launcher not found".
+     A vector drawable is plain text, so it pushes cleanly and renders on
+     every density. Replace with adaptive PNG icons before a Play release. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#7A9B7A"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#FFF9F2"
+        android:pathData="M22,66 L26,52 Q28,47 34,47 L72,47 Q78,47 80,52 L84,66 L84,69 Q84,73 80,73 L26,73 Q22,73 22,69 Z" />
+    <path
+        android:fillColor="#FFF9F2"
+        android:pathData="M27,78 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <path
+        android:fillColor="#FFF9F2"
+        android:pathData="M65,78 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <path
+        android:fillColor="#7A9B7A"
+        android:pathData="M31,78 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path
+        android:fillColor="#7A9B7A"
+        android:pathData="M69,78 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+</vector>
