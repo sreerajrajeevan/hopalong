@@ -132,7 +132,6 @@ class Profile {
       'avatar_url': avatarUrl,
       'mode': mode,
       'completed_rides': completedRides,
-      'demo_admin': demoAdmin,
     };
   }
 }
@@ -220,14 +219,26 @@ class Ride {
 
   factory Ride.fromJson(Map<String, dynamic> json) {
     final now = DateTime.now();
+    // The live table stores one `departure_time` (time) column; demo data
+    // uses separate hour/minute keys. Prefer the time column when present.
+    var hour = _i(json, 'departure_hour', 'departureHour', 9);
+    var minute = _i(json, 'departure_minute', 'departureMinute', 0);
+    final timeRaw = json['departure_time'] ?? json['departureTime'];
+    if (timeRaw is String) {
+      final parts = timeRaw.split(':');
+      if (parts.length >= 2) {
+        hour = int.tryParse(parts[0]) ?? hour;
+        minute = int.tryParse(parts[1]) ?? minute;
+      }
+    }
     return Ride(
       id: _s(json, 'id', 'id', ''),
       hostId: _s(json, 'host_id', 'hostId', ''),
       fromLocation: _s(json, 'from_location', 'fromLocation', ''),
       toLocation: _s(json, 'to_location', 'toLocation', ''),
       travelDate: _dt(json, 'travel_date', 'travelDate', now),
-      departureHour: _i(json, 'departure_hour', 'departureHour', 9),
-      departureMinute: _i(json, 'departure_minute', 'departureMinute', 0),
+      departureHour: hour,
+      departureMinute: minute,
       vehicleType: _s(json, 'vehicle_type', 'vehicleType', 'car'),
       vehicleModel: _s(json, 'vehicle_model', 'vehicleModel', ''),
       totalSeats: _i(json, 'total_seats', 'totalSeats', 4),
@@ -248,8 +259,8 @@ class Ride {
       'from_location': fromLocation,
       'to_location': toLocation,
       'travel_date': travelDate.toIso8601String(),
-      'departure_hour': departureHour,
-      'departure_minute': departureMinute,
+      'departure_time':
+          '${departureHour.toString().padLeft(2, '0')}:${departureMinute.toString().padLeft(2, '0')}:00',
       'vehicle_type': vehicleType,
       'vehicle_model': vehicleModel,
       'total_seats': totalSeats,
