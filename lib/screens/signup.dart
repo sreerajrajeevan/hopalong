@@ -38,12 +38,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void initState() {
     super.initState();
     final contact = widget.prefill['contact'] as String? ?? '';
-    final useEmail = widget.prefill['useEmail'] as bool? ?? false;
-    if (useEmail) {
-      _emailController.text = contact;
-    } else {
-      _phoneController.text = contact;
-    }
+    _phoneController.text = contact;
   }
 
   @override

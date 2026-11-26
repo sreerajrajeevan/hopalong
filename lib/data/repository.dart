@@ -7,9 +7,11 @@ abstract class HopRepository {
 
   Future<Profile?> getCurrentProfile();
 
-  Future<Profile> signInWithOtp({String? email, String? phone});
+  /// Phone-only sign-in: Supabase sends a 6-digit OTP by SMS to the
+  /// user's mobile number. No email sign-in, no WhatsApp.
+  Future<Profile> signInWithOtp({String? phone});
 
-  Future<Profile> verifyOtp({required String code, String? email, String? phone});
+  Future<Profile> verifyOtp({required String code, String? phone});
 
   Future<Profile> createProfile(Profile profile);
 

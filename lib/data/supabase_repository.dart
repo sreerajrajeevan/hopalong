@@ -72,14 +72,13 @@ class SupabaseRepository implements HopRepository {
   }
 
   @override
-  Future<Profile> signInWithOtp({String? email, String? phone}) async {
-    if (email != null) {
-      await _client.auth.signInWithOtp(email: email);
-    } else if (phone != null) {
-      await _client.auth.signInWithOtp(phone: phone);
-    } else {
-      throw ArgumentError('Provide an email or phone number.');
+  Future<Profile> signInWithOtp({String? phone}) async {
+    if (phone == null) {
+      throw ArgumentError('Provide a phone number.');
     }
+    // Phone SMS OTP via the provider configured in Supabase Auth
+    // (Phone provider). The 6-digit code arrives as an SMS.
+    await _client.auth.signInWithOtp(phone: phone);
     // OTP not verified yet, so there is no signed-in user/profile.
     // Return a placeholder carrying the contact detail so the UI can
     // move to the verify step; verifyOtp returns the real profile.
@@ -90,32 +89,24 @@ class SupabaseRepository implements HopRepository {
           fullName: '',
           dob: DateTime(2000, 1, 1),
           gender: '',
-          phone: phone ?? '',
-          email: email,
+          phone: phone,
+          email: null,
         );
   }
 
   @override
   Future<Profile> verifyOtp({
     required String code,
-    String? email,
     String? phone,
   }) async {
-    if (email != null) {
-      await _client.auth.verifyOTP(
-        type: OtpType.email,
-        token: code,
-        email: email,
-      );
-    } else if (phone != null) {
-      await _client.auth.verifyOTP(
-        type: OtpType.sms,
-        token: code,
-        phone: phone,
-      );
-    } else {
-      throw ArgumentError('Provide an email or phone number.');
+    if (phone == null) {
+      throw ArgumentError('Provide a phone number.');
     }
+    await _client.auth.verifyOTP(
+      type: OtpType.sms,
+      token: code,
+      phone: phone,
+    );
     final profile = await getCurrentProfile();
     final user = _client.auth.currentUser;
     return profile ??
@@ -124,8 +115,8 @@ class SupabaseRepository implements HopRepository {
           fullName: '',
           dob: DateTime(2000, 1, 1),
           gender: '',
-          phone: phone ?? user?.phone ?? '',
-          email: email ?? user?.email,
+          phone: phone,
+          email: user?.email,
         );
   }
 

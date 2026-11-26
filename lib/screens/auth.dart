@@ -5,8 +5,9 @@ import '../app_state.dart';
 import '../config.dart';
 import '../theme.dart';
 
-/// Phone-or-email login with a 6-digit OTP code.
-/// Demo mode: any 6 digits work. Live mode: real Supabase email OTP.
+/// Phone-only login with a 6-digit OTP code sent by SMS.
+/// Demo mode: any 6 digits work. Live mode: real Supabase phone OTP.
+/// No email sign-in, no WhatsApp.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.state, required this.startMode});
 
@@ -18,13 +19,37 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _useEmail = false;
   bool _codeSent = false;
   bool _busy = false;
   String? _error;
+  String _phone = '';
   final _contactController = TextEditingController();
   final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  /// Normalise an Indian mobile number to E.164 (+91...), which is
+  /// what Supabase phone auth needs.
+  String _toE164(String raw) {
+    var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 11 && digits.startsWith('0')) {
+      digits = digits.substring(1);
+    }
+    if (digits.length == 10) return '+91$digits';
+    if (digits.length == 12 && digits.startsWith('91')) return '+$digits';
+    return '+$digits';
+  }
+
+  bool _isValidMobile(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 10) return RegExp(r'^[6-9]').hasMatch(digits);
+    if (digits.length == 12) {
+      return digits.startsWith('91') && RegExp(r'^91[6-9]').hasMatch(digits);
+    }
+    if (digits.length == 11) {
+      return digits.startsWith('0') && RegExp(r'^0[6-9]').hasMatch(digits);
+    }
+    return false;
+  }
 
   @override
   void dispose() {
@@ -40,10 +65,8 @@ class _AuthScreenState extends State<AuthScreen> {
       _error = null;
     });
     try {
-      await widget.state.repo.signInWithOtp(
-        email: _useEmail ? _contactController.text.trim() : null,
-        phone: _useEmail ? null : _contactController.text.trim(),
-      );
+      _phone = _toE164(_contactController.text.trim());
+      await widget.state.repo.signInWithOtp(phone: _phone);
       setState(() {
         _codeSent = true;
         _busy = false;
@@ -69,8 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await widget.state.repo.verifyOtp(
         code: code,
-        email: _useEmail ? _contactController.text.trim() : null,
-        phone: _useEmail ? null : _contactController.text.trim(),
+        phone: _phone,
       );
       final profile = await widget.state.repo.getCurrentProfile();
       if (profile == null) {
@@ -78,8 +100,7 @@ class _AuthScreenState extends State<AuthScreen> {
           Navigator.of(context).pushReplacementNamed('/signup',
               arguments: {
                 'mode': widget.startMode,
-                'contact': _contactController.text.trim(),
-                'useEmail': _useEmail,
+                'contact': _phone,
               });
         }
         return;
@@ -114,8 +135,8 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 8),
               Text(
                 _codeSent
-                    ? 'We sent a 6-digit code to ${_contactController.text.trim()}.'
-                    : 'Log in with your mobile number or email to find and offer rides.',
+                    ? 'We sent a 6-digit code by SMS to $_phone.'
+                    : 'Log in with your mobile number to find and offer rides.',
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
@@ -123,48 +144,20 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
               const SizedBox(height: 24),
               if (!_codeSent) ...[
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                        value: false,
-                        icon: Icon(Icons.phone_rounded),
-                        label: Text('Mobile')),
-                    ButtonSegment(
-                        value: true,
-                        icon: Icon(Icons.email_rounded),
-                        label: Text('Email')),
-                  ],
-                  selected: {_useEmail},
-                  onSelectionChanged: (s) =>
-                      setState(() => _useEmail = s.first),
-                ),
-                const SizedBox(height: 16),
                 TextFormField(
                   controller: _contactController,
-                  keyboardType: _useEmail
-                      ? TextInputType.emailAddress
-                      : TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText:
-                        _useEmail ? 'Email address' : 'Mobile number',
-                    prefixIcon: Icon(_useEmail
-                        ? Icons.email_outlined
-                        : Icons.phone_outlined),
-                    hintText: _useEmail
-                        ? 'you@example.com'
-                        : '+91 98765 43210',
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile number',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    hintText: '98765 43210',
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Please enter your ${_useEmail ? 'email' : 'mobile number'}.';
+                      return 'Please enter your mobile number.';
                     }
-                    if (_useEmail &&
-                        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                            .hasMatch(v.trim())) {
-                      return 'That email doesn\'t look right.';
-                    }
-                    if (!_useEmail && v.trim().length < 10) {
-                      return 'Enter a valid mobile number.';
+                    if (!_isValidMobile(v.trim())) {
+                      return 'Enter a valid 10-digit mobile number.';
                     }
                     return null;
                   },
@@ -189,7 +182,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Text(
-                      'Demo mode: no real SMS or email is sent. '
+                      'Demo mode: no real SMS is sent. '
                       'Tap "Send code", then enter any 6 digits.',
                       style: TextStyle(fontSize: 13),
                     ),
@@ -235,7 +228,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _codeSent = false;
                     _codeController.clear();
                   }),
-                  child: const Text('Use a different number or email'),
+                  child: const Text('Use a different number'),
                 ),
               ],
               if (_error != null) ...[
@@ -250,7 +243,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     .pushReplacementNamed('/signup', arguments: {
                   'mode': widget.startMode,
                   'contact': '',
-                  'useEmail': _useEmail,
                 }),
                 child: const Text('New here? Create an account'),
               ),

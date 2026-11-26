@@ -93,7 +93,7 @@ class DemoRepository implements HopRepository {
   Future<Profile?> getCurrentProfile() async => _currentUser;
 
   @override
-  Future<Profile> signInWithOtp({String? email, String? phone}) async {
+  Future<Profile> signInWithOtp({String? phone}) async {
     _currentUser = demoUser;
     _notify();
     return demoUser;
@@ -102,7 +102,6 @@ class DemoRepository implements HopRepository {
   @override
   Future<Profile> verifyOtp({
     required String code,
-    String? email,
     String? phone,
   }) async {
     if (code.length != 6 || int.tryParse(code) == null) {
@@ -177,6 +176,9 @@ class DemoRepository implements HopRepository {
     for (final req in _requests.where(
       (r) => r.rideId == rideId && r.status == 'accepted',
     )) {
+      // Mirror the SQL cancel_ride RPC: accepted requests become
+      // 'cancelled', so they land in the member's Cancelled tab.
+      _replaceRequest(req.copyWith(status: 'cancelled'));
       _addNotification(
         AppNotification(
           id: _uuid.v4(),

@@ -141,7 +141,7 @@ class PrivacyScreen extends StatelessWidget {
         child: Text(
           'HopAlong collects only what it needs to run a friendly ride community:\n\n'
           '• Your name, age, gender and profile photo — shown to other members so they know who they are travelling with.\n'
-          '• Your mobile number and email — used only to sign you in. They are never shown publicly.\n'
+          '• Your mobile number — used to sign you in with an SMS code. Your email, if you choose to give one, is only an optional contact detail. Neither is ever shown publicly.\n'
           '• Your rides, join requests and chats — visible only to the people involved in that ride.\n'
           '• We do not track your live location, and we do not sell your data.\n\n'
           'You can delete your account at any time from Profile → Delete account. '

@@ -59,14 +59,17 @@ placeholder ids with their real auth user ids, or skip this step: demo
 mode already shows the same 8 rides. Delete the sample rows before
 launch (see the header comment in `seed.sql`).
 
-## 5. Set up sign-in
+## 5. Set up sign-in (phone SMS code only)
 
-1. Open **Authentication** → **Providers** → **Email**.
-2. For testing, turn **Confirm email** OFF so you can sign up instantly.
-   For production, turn it back ON.
-3. Enable **Email OTP** while you are there (used for email-code sign-in).
-4. Phone sign-in is optional and needs a Twilio or MessageBird account —
-   skip it unless you need SMS login.
+Sign-in is phone-only: the user enters their mobile number and gets a
+6-digit code by SMS. No email sign-in, no WhatsApp.
+
+1. In Supabase, open **Authentication** → **Providers** → **Phone** and
+   turn it ON. Set an SMS provider (Twilio or MessageBird) with its
+   credentials — Supabase needs one to send the codes.
+2. Leave the **Email** provider OFF — the app has no email sign-in.
+   (For testing, you can add test phone numbers with fixed codes on the
+   same Phone provider page.)
 
 ## 6. Copy the API keys
 
@@ -87,7 +90,7 @@ sample data and no account needed — see the project README.
 
 ## 8. Verify it works
 
-1. Run the app, sign up with an email and password, and complete the profile.
+1. Run the app, sign in with your mobile number, and complete the profile.
 2. In the Supabase Dashboard, open **Table Editor** → `profiles` — you
    should see one new row for your account.
 3. Create a ride as a rider, then request it from a second account to see
