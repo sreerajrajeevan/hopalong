@@ -1,7 +1,9 @@
 import 'package:intl/intl.dart';
 
 /// Returns the whole-years age on [now] (defaults to [DateTime.now]).
-int ageFromDob(DateTime dob, {DateTime? now}) {
+/// Null when no date of birth was shared.
+int? ageFromDob(DateTime? dob, {DateTime? now}) {
+  if (dob == null) return null;
   final ref = now ?? DateTime.now();
   var age = ref.year - dob.year;
   if (ref.month < dob.month ||
@@ -12,10 +14,55 @@ int ageFromDob(DateTime dob, {DateTime? now}) {
 }
 
 /// True iff the person is at least 18 on [now]. A future DOB is never adult.
-bool isAdult(DateTime dob, {DateTime? now}) {
+/// No DOB on file means "not proven underage" — true, so an optional DOB
+/// never blocks signup.
+bool isAdult(DateTime? dob, {DateTime? now}) {
+  if (dob == null) return true;
   final ref = now ?? DateTime.now();
   if (dob.isAfter(ref)) return false;
-  return ageFromDob(dob, now: ref) >= 18;
+  return (ageFromDob(dob, now: ref) ?? 0) >= 18;
+}
+
+/// Short age text for profile lines: '26' or null when no DOB was shared.
+String? ageText(DateTime? dob) {
+  final age = ageFromDob(dob);
+  return age == null ? null : '$age';
+}
+
+/// Clamps a stored travel date into the picker's valid window
+/// [today, today + 60 days]. showDatePicker asserts the initial date is
+/// inside that window, and a date stored at midnight is *before*
+/// DateTime.now() (which carries the current time) — so an unclamped
+/// "today" crashes the picker on the second tap.
+DateTime clampPickerDate(DateTime? date, {DateTime? now}) {
+  final ref = now ?? DateTime.now();
+  final first = DateTime(ref.year, ref.month, ref.day);
+  final last = first.add(const Duration(days: 60));
+  if (date == null) return first;
+  if (date.isBefore(first)) return first;
+  if (date.isAfter(last)) return last;
+  return date;
+}
+
+/// The login email for a mobile number: `<digits>@hopalong.app`.
+/// The app never shows this address; users sign in with their number and
+/// password. Must match the manage-users Edge Function exactly.
+String loginEmailForPhone(String phone) {
+  final d = phone.replaceAll(RegExp(r'\D'), '');
+  final digits = d.length == 10
+      ? '91$d'
+      : (d.length == 12 && d.startsWith('91'))
+          ? d
+          : (d.length == 11 && d.startsWith('0'))
+              ? '91${d.substring(1)}'
+              : d;
+  return '$digits@hopalong.app';
+}
+
+/// "26 · Female", or just "Female" when no DOB was shared.
+String ageGender(DateTime? dob, String gender) {
+  final age = ageFromDob(dob);
+  return age == null ? gender : '$age · $gender';
 }
 
 enum RideStatus { available, fillingFast, full }

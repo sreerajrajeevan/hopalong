@@ -44,8 +44,11 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
       _from.text = e.fromLocation;
       _to.text = e.toLocation;
       _model.text = e.vehicleModel;
-      _contribution.text =
-          e.contribution == null ? '' : e.contribution!.toStringAsFixed(0);
+      _contribution.text = e.contribution == null
+          ? ''
+          : (e.contribution! % 1 == 0
+              ? e.contribution!.toInt().toString()
+              : e.contribution!.toString());
       _pickup.text = e.pickupLandmark;
       _dropoff.text = e.dropoffLandmark;
       _notes.text = e.notes;
@@ -68,8 +71,9 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
     super.dispose();
   }
 
-  Ride _buildRide() {
-    final user = widget.state.currentUser!;
+  Ride? _buildRide() {
+    final user = widget.state.currentUser;
+    if (user == null) return null;
     final existing = widget.existing;
     return Ride(
       id: existing?.id ?? const Uuid().v4(),
@@ -95,52 +99,53 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
   }
 
   Future<void> _publish() async {
-    setState(() => _busy = true);
+    if (!_formKey.currentState!.validate()) return;
     final ride = _buildRide();
-    try {
-      if (_isEdit) {
-        await widget.state.updateRide(ride);
-      } else {
-        await widget.state.createRide(ride);
-      }
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AnimatedCheck(),
-              const SizedBox(height: 16),
-              Text(_isEdit ? 'Ride updated!' : 'Your ride is live!',
-                  style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(
-                _isEdit
-                    ? 'Members on this ride have been notified.'
-                    : 'It is now showing in the ride feed. Happy hopping!',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Lovely!'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      setState(() => _busy = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not publish the ride. Try again.')));
-      }
+    if (ride == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Please sign in again to publish a ride.')));
+      return;
     }
+    setState(() => _busy = true);
+    final ok = _isEdit
+        ? await widget.state.updateRide(ride)
+        : await widget.state.createRide(ride);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _busy = false);
+      showHopError(context, widget.state.error);
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AnimatedCheck(),
+            const SizedBox(height: 16),
+            Text(_isEdit ? 'Ride updated!' : 'Your ride is live!',
+                style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              _isEdit
+                  ? 'Members on this ride have been notified.'
+                  : 'It is now showing in the ride feed. Happy hopping!',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Lovely!'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -185,10 +190,10 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate: _date,
-                        firstDate: DateTime.now(),
-                        lastDate:
-                            DateTime.now().add(const Duration(days: 60)),
+                        initialDate: clampPickerDate(_date),
+                        firstDate: clampPickerDate(null),
+                        lastDate: clampPickerDate(null)
+                            .add(const Duration(days: 60)),
                       );
                       if (picked != null) setState(() => _date = picked);
                     },
@@ -252,11 +257,15 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
+                    // A stored seat count outside 1–6 (old data) would
+                    // make the dropdown throw on open — include it.
                     initialValue: _seats,
                     decoration: const InputDecoration(
                         labelText: 'Available seats',
                         prefixIcon: Icon(Icons.event_seat_rounded)),
-                    items: List.generate(6, (i) => i + 1)
+                    items: (_seats >= 1 && _seats <= 6
+                            ? List.generate(6, (i) => i + 1)
+                            : [...List.generate(6, (i) => i + 1), _seats])
                         .map((n) => DropdownMenuItem(
                             value: n, child: Text('$n')))
                         .toList(),
@@ -323,7 +332,13 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
 
   Widget _previewBody() {
     final ride = _buildRide();
-    final user = widget.state.currentUser!;
+    final user = widget.state.currentUser;
+    if (ride == null || user == null) {
+      return const HopEmptyState(
+          icon: Icons.error_outline_rounded,
+          title: 'Please sign in again',
+          subtitle: 'Your session ended. Sign in again to publish a ride.');
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -356,7 +371,7 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
                                     .textTheme
                                     .titleMedium),
                             Text(
-                                '${ageFromDob(user.dob)} · ${user.gender}',
+                                ageGender(user.dob, user.gender),
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall),

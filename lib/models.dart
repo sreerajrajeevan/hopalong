@@ -58,7 +58,7 @@ DateTime? _dtOpt(Map<String, dynamic> json, String snake, String camel) {
 class Profile {
   final String id;
   final String fullName;
-  final DateTime dob;
+  final DateTime? dob;
   final String gender;
   final String phone;
   final String? email;
@@ -67,10 +67,14 @@ class Profile {
   final int completedRides;
   final bool demoAdmin;
 
+  /// True when the user must pick a new password at next sign-in
+  /// (admin-created account, or an admin reset it).
+  final bool mustResetPassword;
+
   const Profile({
     required this.id,
     required this.fullName,
-    required this.dob,
+    this.dob,
     required this.gender,
     required this.phone,
     this.email,
@@ -78,6 +82,7 @@ class Profile {
     this.mode = 'member',
     this.completedRides = 0,
     this.demoAdmin = false,
+    this.mustResetPassword = false,
   });
 
   Profile copyWith({
@@ -91,6 +96,7 @@ class Profile {
     String? mode,
     int? completedRides,
     bool? demoAdmin,
+    bool? mustResetPassword,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -103,6 +109,7 @@ class Profile {
       mode: mode ?? this.mode,
       completedRides: completedRides ?? this.completedRides,
       demoAdmin: demoAdmin ?? this.demoAdmin,
+      mustResetPassword: mustResetPassword ?? this.mustResetPassword,
     );
   }
 
@@ -110,7 +117,7 @@ class Profile {
     return Profile(
       id: _s(json, 'id', 'id', ''),
       fullName: _s(json, 'full_name', 'fullName', ''),
-      dob: _dt(json, 'dob', 'dob', DateTime(2000, 1, 1)),
+      dob: _dtOpt(json, 'dob', 'dob'),
       gender: _s(json, 'gender', 'gender', ''),
       phone: _s(json, 'phone', 'phone', ''),
       email: _sOpt(json, 'email', 'email'),
@@ -118,6 +125,8 @@ class Profile {
       mode: _s(json, 'mode', 'mode', 'member'),
       completedRides: _i(json, 'completed_rides', 'completedRides', 0),
       demoAdmin: _b(json, 'demo_admin', 'demoAdmin', false),
+      mustResetPassword:
+          _b(json, 'must_reset_password', 'mustResetPassword', false),
     );
   }
 
@@ -125,13 +134,14 @@ class Profile {
     return {
       'id': id,
       'full_name': fullName,
-      'dob': dob.toIso8601String(),
+      'dob': dob?.toIso8601String(),
       'gender': gender,
       'phone': phone,
       'email': email,
       'avatar_url': avatarUrl,
       'mode': mode,
       'completed_rides': completedRides,
+      'must_reset_password': mustResetPassword,
     };
   }
 }

@@ -256,7 +256,7 @@ class _PendingRequestCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium),
                       if (member != null)
                         Text(
-                            '${ageFromDob(member.dob)} · ${member.gender}',
+                            ageGender(member.dob, member.gender),
                             style:
                                 Theme.of(context).textTheme.bodySmall),
                     ],
@@ -283,7 +283,7 @@ class _PendingRequestCard extends StatelessWidget {
                                       .textTheme
                                       .titleMedium),
                               Text(
-                                  '${ageFromDob(member.dob)} · ${member.gender}'),
+                                  ageGender(member.dob, member.gender)),
                               Text(
                                   '${member.completedRides} rides completed'),
                             ],
@@ -325,21 +325,22 @@ class _PendingRequestCard extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      try {
-                        await state.acceptRequest(request.id);
-                        if (context.mounted) {
+                      final ok = await state.acceptRequest(request.id);
+                      if (context.mounted) {
+                        if (ok) {
                           ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                   content: Text(
                                       'Accepted! They are now on your ride.')));
-                        }
-                      } on StateError catch (e) {
-                        if (context.mounted) {
+                        } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                  content: Text(e.message == 'full'
-                                      ? 'No seats left on this ride.'
-                                      : e.message)));
+                                  content: Text(
+                                      (state.error ?? '').contains('full') ||
+                                              (state.error ?? '')
+                                                  .contains('seat')
+                                          ? 'No seats left on this ride.'
+                                          : 'Could not accept. Please try again.')));
                         }
                       }
                     },
@@ -350,12 +351,16 @@ class _PendingRequestCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      await state.rejectRequest(request.id);
+                      final ok = await state.rejectRequest(request.id);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Request declined politely.')));
+                        if (ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Request declined politely.')));
+                        } else {
+                          showHopError(context, state.error);
+                        }
                       }
                     },
                     child: const Text('Reject'),

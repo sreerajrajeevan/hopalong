@@ -120,6 +120,100 @@ class DemoRepository implements HopRepository {
     return demoUser;
   }
 
+  // ---- Password login (admin-managed accounts) ----
+
+  final Set<String> _adminIds = {};
+
+  @override
+  Future<Profile> signInWithPassword({
+    required String phone,
+    required String password,
+  }) async {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) {
+      throw const FormatException('Enter a valid mobile number.');
+    }
+    if (password.length < 6) {
+      throw const FormatException('Password must be at least 6 characters.');
+    }
+    _currentUser = demoUser;
+    _notify();
+    return demoUser;
+  }
+
+  @override
+  Future<void> updateOwnPassword(String newPassword) async {
+    // Demo: nothing to persist.
+  }
+
+  @override
+  Future<bool> isCurrentUserAdmin() async {
+    return _currentUser != null &&
+        (_adminIds.contains(_currentUser!.id) ||
+            _currentUser!.id == demoUser.id);
+  }
+
+  @override
+  Future<List<Profile>> getAllProfiles() async {
+    final list = [..._profiles];
+    list.sort((a, b) => a.fullName.compareTo(b.fullName));
+    return list;
+  }
+
+  @override
+  Future<List<String>> getAdminUserIds() async {
+    return {..._adminIds, demoUser.id}.toList();
+  }
+
+  @override
+  Future<String> adminCreateUser({
+    required String name,
+    required String phone,
+    required String tempPassword,
+  }) async {
+    final profile = Profile(
+      id: _uuid.v4(),
+      fullName: name,
+      dob: null,
+      gender: 'Prefer not to say',
+      phone: phone.replaceAll(RegExp(r'\D'), ''),
+      mustResetPassword: true,
+    );
+    _profiles.add(profile);
+    _notify();
+    return profile.id;
+  }
+
+  @override
+  Future<void> adminSetPassword({
+    required String userId,
+    required String tempPassword,
+  }) async {
+    final i = _profiles.indexWhere((p) => p.id == userId);
+    if (i >= 0) {
+      _profiles[i] = _profiles[i].copyWith(mustResetPassword: true);
+      _notify();
+    }
+  }
+
+  @override
+  Future<void> adminSetAdmin({
+    required String userId,
+    required bool makeAdmin,
+  }) async {
+    if (makeAdmin) {
+      _adminIds.add(userId);
+    } else {
+      _adminIds.remove(userId);
+    }
+    _notify();
+  }
+
+  @override
+  Future<void> bootstrapAdmin({required String password}) async {
+    if (_currentUser != null) _adminIds.add(_currentUser!.id);
+  }
+
   @override
   Future<Profile> createProfile(Profile profile) async {
     final existing = _profiles.indexWhere((p) => p.id == profile.id);

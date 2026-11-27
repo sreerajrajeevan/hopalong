@@ -19,9 +19,56 @@ abstract class HopRepository {
 
   /// Phone-only sign-in: Supabase sends a 6-digit OTP by SMS to the
   /// user's mobile number. No email sign-in, no WhatsApp.
+  /// Kept only for the one-time first-time password setup; normal
+  /// sign-in is [signInWithPassword].
   Future<Profile> signInWithOtp({String? phone});
 
   Future<Profile> verifyOtp({required String code, String? phone});
+
+  /// Password sign-in (admin-managed accounts): mobile number + password.
+  /// The number is converted to a login email internally; the user never
+  /// sees it.
+  Future<Profile> signInWithPassword({
+    required String phone,
+    required String password,
+  });
+
+  /// Changes the signed-in user's own password (first-login reset).
+  Future<void> updateOwnPassword(String newPassword);
+
+  /// True when the signed-in user is an admin.
+  Future<bool> isCurrentUserAdmin();
+
+  /// All profiles, newest first — for the admin screen.
+  Future<List<Profile>> getAllProfiles();
+
+  /// Ids of the current admins.
+  Future<List<String>> getAdminUserIds();
+
+  /// Admin actions — these call the manage-users Edge Function, which
+  /// holds the service key. The app never touches admin APIs directly.
+  /// [adminCreateUser] returns the new user's id.
+  Future<String> adminCreateUser({
+    required String name,
+    required String phone,
+    required String tempPassword,
+  });
+
+  /// Sets a user's password and forces a reset at their next sign-in.
+  Future<void> adminSetPassword({
+    required String userId,
+    required String tempPassword,
+  });
+
+  Future<void> adminSetAdmin({
+    required String userId,
+    required bool makeAdmin,
+  });
+
+  /// First-admin bootstrap: when no admin exists yet, the signed-in user
+  /// promotes themselves and sets their own password. Afterwards this
+  /// always fails.
+  Future<void> bootstrapAdmin({required String password});
 
   Future<Profile> createProfile(Profile profile);
 

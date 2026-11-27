@@ -59,7 +59,7 @@ class RideCard extends StatelessWidget {
                                 ?.copyWith(fontSize: 16)),
                         if (host != null)
                           Text(
-                              '${ageFromDob(host.dob)} · ${host.gender}',
+                              ageGender(host.dob, host.gender),
                               style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
@@ -177,37 +177,28 @@ class RideCard extends StatelessWidget {
       },
     );
     if (message == null || !context.mounted) return;
-    try {
-      await state.sendJoinRequest(ride.id,
-          message: message.isEmpty ? null : message);
-      if (context.mounted) {
+    final ok = await state.sendJoinRequest(ride.id,
+        message: message.isEmpty ? null : message);
+    if (context.mounted) {
+      if (ok) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Request sent! The host will let you know soon.')));
-      }
-    } on StateError catch (e) {
-      if (context.mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_friendlyError(e.message))));
+            SnackBar(content: Text(friendlyJoinError(state.error))));
       }
     }
-  }
-
-  String _friendlyError(String message) {
-    if (message == 'duplicate') {
-      return 'You already have a request for this ride.';
-    }
-    if (message == 'full') {
-      return 'Sorry — this ride is now full.';
-    }
-    return message;
   }
 
   Future<void> _messageHost(BuildContext context) async {
     final convo = await state.openConversation(
         rideId: ride.id, hostId: ride.hostId);
-    if (context.mounted) {
-      Navigator.of(context).pushNamed('/chat', arguments: convo.id);
+    if (!context.mounted) return;
+    if (convo == null) {
+      showHopError(context, state.error);
+      return;
     }
+    Navigator.of(context).pushNamed('/chat', arguments: convo.id);
   }
 }
 

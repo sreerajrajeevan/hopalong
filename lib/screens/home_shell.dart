@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
+import '../widgets/common.dart';
 import 'chats.dart';
 import 'explore.dart';
 import 'my_trips.dart';
@@ -58,12 +59,17 @@ class _HomeShellState extends State<HomeShell> {
                   selected: true,
                   selectedColor: HopColors.sageSoft,
                   onSelected: (_) async {
-                    await state.setMode(isRider ? 'member' : 'rider');
+                    final ok =
+                        await state.setMode(isRider ? 'member' : 'rider');
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(isRider
-                              ? 'Switched to Member mode.'
-                              : 'Switched to Rider mode.')));
+                      if (ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(isRider
+                                ? 'Switched to Member mode.'
+                                : 'Switched to Rider mode.')));
+                      } else {
+                        showHopError(context, state.error);
+                      }
                     }
                     setState(() => _index = 0);
                   },

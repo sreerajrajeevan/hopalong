@@ -42,8 +42,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     _controller.clear();
-    await widget.state.sendMessage(widget.conversationId, text);
-    if (mounted) setState(() => _sending = false);
+    try {
+      final ok = await widget.state.sendMessage(widget.conversationId, text);
+      if (mounted && !ok) showHopError(context, widget.state.error);
+    } finally {
+      // Always re-enable the send button, even when the send failed —
+      // otherwise one failed send used to kill the button for good.
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -94,7 +100,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       Text(other?.fullName ?? 'Rider',
                           style: const TextStyle(fontSize: 16)),
                       if (other != null)
-                        Text('${ageFromDob(other.dob)} · ${other.gender}',
+                        Text(ageGender(other.dob, other.gender),
                             style: const TextStyle(
                                 fontSize: 12, color: HopColors.inkSoft)),
                     ],
@@ -109,12 +115,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     await showReportDialog(context, state,
                         rideId: convo.rideId, reportedUserId: otherId);
                   } else if (v == 'block') {
-                    await state.blockUser(otherId);
+                    final ok = await state.blockUser(otherId);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('User blocked.')));
-                      Navigator.of(context).pop();
+                      if (ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('User blocked.')));
+                        Navigator.of(context).pop();
+                      } else {
+                        showHopError(context, state.error);
+                      }
                     }
                   }
                 },
@@ -191,13 +201,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () async {
-                                await state
+                                final ok = await state
                                     .acceptRequest(pendingRequest.id);
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(
-                                          content: Text(
-                                              'Accepted! They are on your ride.')));
+                                  if (ok) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                'Accepted! They are on your ride.')));
+                                  } else {
+                                    showHopError(context, state.error);
+                                  }
                                 }
                               },
                               child: const Text('Accept'),
@@ -207,13 +221,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () async {
-                                await state
+                                final ok = await state
                                     .rejectRequest(pendingRequest.id);
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(
-                                          content: Text(
-                                              'Request declined politely.')));
+                                  if (ok) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                'Request declined politely.')));
+                                  } else {
+                                    showHopError(context, state.error);
+                                  }
                                 }
                               },
                               child: const Text('Reject'),

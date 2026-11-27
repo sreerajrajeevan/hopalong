@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models.dart';
+import '../utils.dart';
 import 'repository.dart';
 
 /// Supabase-backed implementation of [HopRepository].
@@ -51,22 +52,22 @@ class SupabaseRepository implements HopRepository {
   Future<Profile?> getCurrentProfile() async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
-    try {
-      final data = await _client
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-      final row = _row(data);
-      // No row yet means this signed-in user has not created a profile:
-      // return null so the caller routes them to the signup screen.
-      // (Never return a blank placeholder profile here — the home screens
-      // render the profile's name/photo and crash on an empty name.)
-      if (row == null) return null;
-      return Profile.fromJson(row);
-    } catch (_) {
-      return null;
-    }
+    // maybeSingle() returns null when there is no row — that is the only
+    // "no profile" signal. Any other error (network, server) must
+    // propagate: swallowing it here used to misroute existing users to
+    // the signup form, where saving would overwrite their real profile.
+    final data = await _client
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+    final row = _row(data);
+    // No row yet means this signed-in user has not created a profile:
+    // return null so the caller routes them to the signup screen.
+    // (Never return a blank placeholder profile here — the home screens
+    // render the profile's name/photo and crash on an empty name.)
+    if (row == null) return null;
+    return Profile.fromJson(row);
   }
 
   @override
@@ -85,7 +86,7 @@ class SupabaseRepository implements HopRepository {
         Profile(
           id: '',
           fullName: '',
-          dob: DateTime(2000, 1, 1),
+          dob: null,
           gender: '',
           phone: phone,
           email: null,
@@ -111,11 +112,134 @@ class SupabaseRepository implements HopRepository {
         Profile(
           id: user?.id ?? '',
           fullName: '',
-          dob: DateTime(2000, 1, 1),
+          dob: null,
           gender: '',
           phone: phone,
           email: user?.email,
         );
+  }
+
+  @override
+  Future<Profile> signInWithPassword({
+    required String phone,
+    required String password,
+  }) async {
+    await _client.auth.signInWithPassword(
+      email: loginEmailForPhone(phone),
+      password: password,
+    );
+    final profile = await getCurrentProfile();
+    if (profile == null) {
+      throw StateError('no_profile');
+    }
+    return profile;
+  }
+
+  @override
+  Future<void> updateOwnPassword(String newPassword) async {
+    await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+  }
+
+  @override
+  Future<bool> isCurrentUserAdmin() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return false;
+    final data = await _client
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', uid)
+        .maybeSingle();
+    return _row(data) != null;
+  }
+
+  @override
+  Future<List<Profile>> getAllProfiles() async {
+    final data = await _client
+        .from('profiles')
+        .select()
+        .order('full_name', ascending: true);
+    return _rows(data).map(Profile.fromJson).toList();
+  }
+
+  @override
+  Future<List<String>> getAdminUserIds() async {
+    final data = await _client.from('admins').select('user_id');
+    return _rows(data)
+        .map((r) => r['user_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  /// Calls the manage-users Edge Function and returns its JSON body.
+  /// Throws a readable error when the function reports one.
+  Future<Map<String, dynamic>> _manageUsers(
+    Map<String, dynamic> body,
+  ) async {
+    final res = await _client.functions.invoke(
+      'manage-users',
+      body: body,
+    );
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error != null) throw StateError(error.toString());
+      return data;
+    }
+    if (res.status != 200) {
+      throw StateError('The admin service did not answer. Try again.');
+    }
+    return const {};
+  }
+
+  @override
+  Future<String> adminCreateUser({
+    required String name,
+    required String phone,
+    required String tempPassword,
+  }) async {
+    final data = await _manageUsers({
+      'action': 'create-user',
+      'name': name,
+      'phone': phone,
+      'password': tempPassword,
+    });
+    final id = data['userId'];
+    if (id == null) throw StateError('The user was not created.');
+    return id.toString();
+  }
+
+  @override
+  Future<void> adminSetPassword({
+    required String userId,
+    required String tempPassword,
+  }) async {
+    await _manageUsers({
+      'action': 'set-password',
+      'userId': userId,
+      'password': tempPassword,
+    });
+  }
+
+  @override
+  Future<void> adminSetAdmin({
+    required String userId,
+    required bool makeAdmin,
+  }) async {
+    await _manageUsers({
+      'action': 'set-admin',
+      'userId': userId,
+      'makeAdmin': makeAdmin,
+    });
+  }
+
+  @override
+  Future<void> bootstrapAdmin({required String password}) async {
+    await _manageUsers({
+      'action': 'bootstrap',
+      'password': password,
+    });
   }
 
   @override
@@ -210,38 +334,14 @@ class SupabaseRepository implements HopRepository {
 
   @override
   Future<void> cancelRide(String rideId) async {
-    await _client
-        .from('rides')
-        .update({'status': 'cancelled'})
-        .eq('id', rideId);
-    final rideData = await _client
-        .from('rides')
-        .select()
-        .eq('id', rideId)
-        .maybeSingle();
-    final ride = _row(rideData) == null ? null : Ride.fromJson(_row(rideData)!);
-    final accepted = await _client
-        .from('ride_requests')
-        .select()
-        .eq('ride_id', rideId)
-        .eq('status', 'accepted');
-    for (final row in _rows(accepted)) {
-      final req = RideRequest.fromJson(row);
-      await _client.from('notifications').insert(
-        AppNotification(
-          id: _uuid.v4(),
-          userId: req.memberId,
-          type: 'cancellation',
-          title: 'Ride cancelled',
-          body: ride == null
-              ? 'A ride you joined was cancelled by the host.'
-              : 'The ride ${ride.fromLocation} → ${ride.toLocation} '
-                    'was cancelled by the host.',
-          rideId: rideId,
-          createdAt: DateTime.now(),
-        ).toJson(),
-      );
-    }
+    // The cancel_ride RPC does the whole job atomically: marks the ride
+    // cancelled, cancels accepted requests, and notifies the members.
+    // The old client-side version could leave accepted requests live
+    // and lose the local update if a notification insert failed.
+    await _client.rpc(
+      'cancel_ride',
+      params: {'p_ride_id': rideId},
+    );
     _notify();
   }
 
@@ -301,18 +401,26 @@ class SupabaseRepository implements HopRepository {
         .select()
         .single();
     final row = _row(data);
-    await _client.from('notifications').insert(
-      AppNotification(
-        id: _uuid.v4(),
-        userId: ride.hostId,
-        type: 'request',
-        title: 'New ride request',
-        body: 'Someone wants to join your ride '
-            '${ride.fromLocation} → ${ride.toLocation}.',
-        rideId: rideId,
-        createdAt: DateTime.now(),
-      ).toJson(),
-    );
+    // The request row already exists at this point. A failed host
+    // notification must never fail the join itself or block a retry —
+    // the user would otherwise see an error for a request that went
+    // through, and the duplicate check would then refuse to re-create it.
+    try {
+      await _client.from('notifications').insert(
+        AppNotification(
+          id: _uuid.v4(),
+          userId: ride.hostId,
+          type: 'request',
+          title: 'New ride request',
+          body: 'Someone wants to join your ride '
+              '${ride.fromLocation} → ${ride.toLocation}.',
+          rideId: rideId,
+          createdAt: DateTime.now(),
+        ).toJson(),
+      );
+    } catch (_) {
+      // Notification is best-effort; the request itself succeeded.
+    }
     _notify();
     return row == null ? request : RideRequest.fromJson(row);
   }
@@ -338,7 +446,21 @@ class SupabaseRepository implements HopRepository {
       params: {'p_request_id': requestId},
     );
     _notify();
-    return _fetchRequest(requestId);
+    // The accept already happened server-side. If the refetch fails
+    // (network blip), return a best-effort copy instead of throwing —
+    // otherwise the UI keeps showing the request as pending and a
+    // retry hits "no longer pending".
+    try {
+      return await _fetchRequest(requestId);
+    } catch (_) {
+      return RideRequest(
+        id: requestId,
+        rideId: '',
+        memberId: '',
+        status: 'accepted',
+        createdAt: DateTime.now(),
+      );
+    }
   }
 
   @override
@@ -348,7 +470,17 @@ class SupabaseRepository implements HopRepository {
       params: {'p_request_id': requestId},
     );
     _notify();
-    return _fetchRequest(requestId);
+    try {
+      return await _fetchRequest(requestId);
+    } catch (_) {
+      return RideRequest(
+        id: requestId,
+        rideId: '',
+        memberId: '',
+        status: 'rejected',
+        createdAt: DateTime.now(),
+      );
+    }
   }
 
   @override
@@ -463,7 +595,11 @@ class SupabaseRepository implements HopRepository {
     RealtimeChannel? channel;
     controller = StreamController<List<T>>.broadcast(
       onListen: () async {
-        controller.add(await fetch());
+        try {
+          controller.add(await fetch());
+        } catch (e) {
+          if (!controller.isClosed) controller.addError(e);
+        }
         channel = _client.channel(channelName);
         channel!
             .onPostgresChanges(
@@ -472,7 +608,11 @@ class SupabaseRepository implements HopRepository {
               table: table,
               filter: filter,
               callback: (_) async {
-                if (!controller.isClosed) controller.add(await fetch());
+                try {
+                  if (!controller.isClosed) controller.add(await fetch());
+                } catch (e) {
+                  if (!controller.isClosed) controller.addError(e);
+                }
               },
             )
             .subscribe();
@@ -669,7 +809,12 @@ class SupabaseRepository implements HopRepository {
     // Client-side deletion can only remove the profile row; removing the
     // auth user itself needs a server-side (service-role) call.
     await _client.from('profiles').delete().eq('id', userId);
-    await _client.auth.signOut();
+    try {
+      await _client.auth.signOut();
+    } catch (_) {
+      // The profile is already gone; a sign-out failure must not make
+      // the whole delete look like it failed.
+    }
     _notify();
   }
 

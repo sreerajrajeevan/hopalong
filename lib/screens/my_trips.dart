@@ -172,12 +172,16 @@ class _TripList extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          await state.completeRide(ride.id);
+                          final ok = await state.completeRide(ride.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Ride marked as completed.')));
+                            if (ok) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Ride marked as completed.')));
+                            } else {
+                              showHopError(context, state.error);
+                            }
                           }
                         },
                         icon: const Icon(Icons.check_circle_outline_rounded),
@@ -188,12 +192,16 @@ class _TripList extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () async {
-                          await state.withdrawRequest(myReq.id);
+                          final ok = await state.withdrawRequest(myReq.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Request withdrawn.')));
+                            if (ok) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content:
+                                          Text('Request withdrawn.')));
+                            } else {
+                              showHopError(context, state.error);
+                            }
                           }
                         },
                         child: const Text('Withdraw request'),
@@ -204,12 +212,16 @@ class _TripList extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () async {
-                          await state.withdrawRequest(myReq.id);
+                          final ok = await state.withdrawRequest(myReq.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Your seat has been cancelled.')));
+                            if (ok) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Your seat has been cancelled.')));
+                            } else {
+                              showHopError(context, state.error);
+                            }
                           }
                         },
                         child: const Text('Cancel my seat'),

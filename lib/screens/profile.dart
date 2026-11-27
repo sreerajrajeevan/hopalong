@@ -39,7 +39,7 @@ class ProfileScreen extends StatelessWidget {
                   Text(user.fullName,
                       style: Theme.of(context).textTheme.headlineSmall),
                   Text(
-                      '${ageFromDob(user.dob)} · ${user.gender} · ${user.completedRides} rides completed',
+                      '${ageGender(user.dob, user.gender)} · ${user.completedRides} rides completed',
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
@@ -91,12 +91,16 @@ class ProfileScreen extends StatelessWidget {
                       ],
                       selected: {state.mode},
                       onSelectionChanged: (s) async {
-                        await state.setMode(s.first);
+                        final ok = await state.setMode(s.first);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Switched to ${s.first == 'member' ? 'Member' : 'Rider'} mode.')));
+                          if (ok) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Switched to ${s.first == 'member' ? 'Member' : 'Rider'} mode.')));
+                          } else {
+                            showHopError(context, state.error);
+                          }
                         }
                       },
                     ),
@@ -120,6 +124,12 @@ class ProfileScreen extends StatelessWidget {
                   label: 'Edit profile',
                   onTap: () => _editProfile(context),
                 ),
+                if (state.isAdmin)
+                  _Tile(
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: 'Manage users (admin)',
+                    onTap: () => Navigator.of(context).pushNamed('/admin'),
+                  ),
                 _Tile(
                   icon: Icons.notifications_outlined,
                   label: 'Notification preferences',
@@ -202,9 +212,19 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _editProfile(BuildContext context) async {
-    final user = state.currentUser!;
+    final user = state.currentUser;
+    if (user == null) return;
     final name = TextEditingController(text: user.fullName);
-    String gender = user.gender;
+    // A stored gender outside the four options (old row, blank value)
+    // would make the dropdown throw on open — fall back to a valid one.
+    const genderOptions = [
+      'Female',
+      'Male',
+      'Non-binary',
+      'Prefer not to say',
+    ];
+    String gender =
+        genderOptions.contains(user.gender) ? user.gender : 'Prefer not to say';
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -250,12 +270,22 @@ class ProfileScreen extends StatelessWidget {
     );
     final newName = name.text.trim();
     name.dispose();
-    if (saved == true && newName.isNotEmpty) {
-      await state.updateProfile(
-          user.copyWith(fullName: newName, gender: gender));
+    if (saved != true) return;
+    if (newName.isEmpty) {
       if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Name cannot be empty — nothing was changed.')));
+      }
+      return;
+    }
+    final ok = await state.updateProfile(
+        user.copyWith(fullName: newName, gender: gender));
+    if (context.mounted) {
+      if (ok) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile updated.')));
+      } else {
+        showHopError(context, state.error);
       }
     }
   }
@@ -366,9 +396,13 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await state.deleteAccount();
+      final done = await state.deleteAccount();
       if (context.mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+        if (done) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+        } else {
+          showHopError(context, state.error);
+        }
       }
     }
   }

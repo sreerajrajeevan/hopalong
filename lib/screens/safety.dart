@@ -65,7 +65,7 @@ Future<void> showReportDialog(BuildContext context, AppState state,
   if (submitted != true) return;
   final user = state.currentUser;
   if (user == null) return;
-  await state.submitReport(Report(
+  final ok = await state.submitReport(Report(
     id: 'rep-${DateTime.now().millisecondsSinceEpoch}',
     reporterId: user.id,
     reportedUserId: reportedUserId,
@@ -76,8 +76,12 @@ Future<void> showReportDialog(BuildContext context, AppState state,
     createdAt: DateTime.now(),
   ));
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Report submitted. Thank you for looking out.')));
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Report submitted. Thank you for looking out.')));
+    } else {
+      showHopError(context, state.error);
+    }
   }
 }
 
@@ -264,7 +268,7 @@ class ModerationScreen extends StatelessWidget {
                       Text(
                           'Reported by ${reporter?.fullName ?? 'someone'}'
                           '${reported != null ? ' about ${reported.fullName}' : ''}'
-                          '${report.rideId != null ? ' · ride ${report.rideId!.substring(0, 8)}…' : ''}'),
+                          '${report.rideId != null ? ' · ride ${report.rideId!.length > 8 ? report.rideId!.substring(0, 8) : report.rideId}…' : ''}'),
                       if (report.details != null) ...[
                         const SizedBox(height: 6),
                         Text(report.details!),
@@ -275,16 +279,26 @@ class ModerationScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () =>
-                                    state.resolveReport(report.id, 'resolved'),
+                                onPressed: () async {
+                                  final ok = await state.resolveReport(
+                                      report.id, 'resolved');
+                                  if (context.mounted && !ok) {
+                                    showHopError(context, state.error);
+                                  }
+                                },
                                 child: const Text('Resolve'),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () => state.resolveReport(
-                                    report.id, 'dismissed'),
+                                onPressed: () async {
+                                  final ok = await state.resolveReport(
+                                      report.id, 'dismissed');
+                                  if (context.mounted && !ok) {
+                                    showHopError(context, state.error);
+                                  }
+                                },
                                 child: const Text('Dismiss'),
                               ),
                             ),

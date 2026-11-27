@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../config.dart';
 import '../theme.dart';
 import '../widgets/travel_illustration.dart';
 
@@ -84,22 +85,26 @@ class WelcomeScreen extends StatelessWidget {
                             .pushNamed('/auth', arguments: 'rider'),
                       ),
                       const SizedBox(height: 20),
-                      Center(
-                        child: TextButton(
-                          onPressed: () async {
-                            await state.demoSignIn();
-                            if (context.mounted) {
-                              Navigator.of(context)
-                                  .pushReplacementNamed('/home');
-                            }
-                          },
-                          child: const Text('Continue in demo →'),
+                      // Demo sign-in only exists in demo mode. In the live
+                      // app this button used to call verifyOtp with no
+                      // phone number and crash on every tap.
+                      if (AppConfig.isDemoMode)
+                        Center(
+                          child: TextButton(
+                            onPressed: () async {
+                              await state.demoSignIn();
+                              if (context.mounted) {
+                                Navigator.of(context)
+                                    .pushReplacementNamed('/home');
+                              }
+                            },
+                            child: const Text('Continue in demo →'),
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 8),
                       const Center(
                         child: Text(
-                          'Adults only (18+) · Photos required · Be kind on the road',
+                          'Be kind on the road · Share rides with neighbours',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 12, color: HopColors.inkSoft),

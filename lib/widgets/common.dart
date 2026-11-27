@@ -285,7 +285,34 @@ class _CheckPainter extends CustomPainter {
       old.progress != progress;
 }
 
-/// Friendly empty state.
+/// Shows a short, human error message. [raw] is the stored error string;
+/// technical codes are translated into plain words.
+void showHopError(BuildContext context, String? raw) {
+  final message = raw == null || raw.isEmpty
+      ? 'Something went wrong. Please try again.'
+      : raw == 'not_signed_in'
+          ? 'Please sign in again to continue.'
+          : raw.contains('Failed host lookup') ||
+                  raw.contains('SocketException') ||
+                  raw.contains('Connection') ||
+                  raw.contains('Network')
+              ? 'No connection right now. Check your internet and try again.'
+              : 'Could not save that. Please try again.';
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message)),
+  );
+}
+
+/// Friendly one-line error text for join-request failures.
+String friendlyJoinError(String? raw) {
+  if (raw == null || raw.isEmpty) return 'Could not send the request.';
+  if (raw == 'not_signed_in') return 'Please sign in again to continue.';
+  if (raw.contains('already')) return 'You already sent a request for this ride.';
+  if (raw.contains('full') || raw.contains('seat')) {
+    return 'Sorry, this ride is full now.';
+  }
+  return 'Could not send the request. Please try again.';
+}
 class HopEmptyState extends StatelessWidget {
   const HopEmptyState(
       {super.key, required this.icon, required this.title, this.subtitle});

@@ -46,14 +46,21 @@ class RideDetailScreen extends StatelessWidget {
             title: const Text('Ride details'),
             actions: [
               PopupMenuButton<String>(
-                onSelected: (v) {
+                onSelected: (v) async {
                   if (v == 'report') {
                     showReportDialog(context, state,
                         rideId: ride.id, reportedUserId: ride.hostId);
                   } else if (v == 'block') {
-                    state.blockUser(ride.hostId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Host blocked.')));
+                    final ok = await state.blockUser(ride.hostId);
+                    if (context.mounted) {
+                      if (ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Host blocked.')));
+                      } else {
+                        showHopError(context, state.error);
+                      }
+                    }
                   }
                 },
                 itemBuilder: (ctx) => const [
@@ -92,7 +99,7 @@ class RideDetailScreen extends StatelessWidget {
                                         .titleMedium),
                                 if (host != null)
                                   Text(
-                                      '${ageFromDob(host.dob)} · ${host.gender} · ${host.completedRides} rides completed',
+                                      '${ageGender(host.dob, host.gender)} · ${host.completedRides} rides completed',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall),
@@ -237,11 +244,15 @@ class RideDetailScreen extends StatelessWidget {
                   myRequest.status == 'pending') ...[
                 OutlinedButton(
                   onPressed: () async {
-                    await state.withdrawRequest(myRequest.id);
+                    final ok = await state.withdrawRequest(myRequest.id);
                     if (context.mounted) {
+                      if (ok) {
                       ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text('Request withdrawn.')));
+                      } else {
+                        showHopError(context, state.error);
+                      }
                     }
                   },
                   child: const Text('Withdraw request'),
@@ -297,12 +308,16 @@ class RideDetailScreen extends StatelessWidget {
                       ),
                     );
                     if (ok == true) {
-                      await state.withdrawRequest(myRequest.id);
+                      final done = await state.withdrawRequest(myRequest.id);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Your seat has been cancelled.')));
+                        if (done) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Your seat has been cancelled.')));
+                        } else {
+                          showHopError(context, state.error);
+                        }
                       }
                     }
                   },
@@ -345,31 +360,27 @@ class RideDetailScreen extends StatelessWidget {
       },
     );
     if (message == null || !context.mounted) return;
-    try {
-      await state.sendJoinRequest(ride.id,
-          message: message.isEmpty ? null : message);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Request sent! The host will let you know soon.')));
-      }
-    } on StateError catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(e.message == 'duplicate'
-                ? 'You already have a request for this ride.'
-                : e.message == 'full'
-                    ? 'Sorry — this ride is now full.'
-                    : e.message)));
-      }
+    final ok = await state.sendJoinRequest(ride.id,
+        message: message.isEmpty ? null : message);
+    if (!context.mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Request sent! The host will let you know soon.')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyJoinError(state.error))));
     }
   }
 
   Future<void> _messageHost(BuildContext context, Ride ride) async {
     final convo =
         await state.openConversation(rideId: ride.id, hostId: ride.hostId);
-    if (context.mounted) {
-      Navigator.of(context).pushNamed('/chat', arguments: convo.id);
+    if (!context.mounted) return;
+    if (convo == null) {
+      showHopError(context, state.error);
+      return;
     }
+    Navigator.of(context).pushNamed('/chat', arguments: convo.id);
   }
 
   Future<void> _cancelRide(BuildContext context, Ride ride) async {
@@ -391,16 +402,26 @@ class RideDetailScreen extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await state.cancelRide(ride.id);
-      if (context.mounted) Navigator.of(context).pop();
+      final done = await state.cancelRide(ride.id);
+      if (context.mounted) {
+        if (done) {
+          Navigator.of(context).pop();
+        } else {
+          showHopError(context, state.error);
+        }
+      }
     }
   }
 
   Future<void> _completeRide(BuildContext context, Ride ride) async {
-    await state.completeRide(ride.id);
+    final ok = await state.completeRide(ride.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ride marked as completed. Thanks for hopping!')));
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ride marked as completed. Thanks for hopping!')));
+      } else {
+        showHopError(context, state.error);
+      }
     }
   }
 }

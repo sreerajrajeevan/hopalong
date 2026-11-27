@@ -66,22 +66,49 @@ class AppState extends ChangeNotifier {
       _cacheProfiles(
         await repo.getProfilesByIds(rides.map((r) => r.hostId).toList()),
       );
-      if (currentUser != null) {
-        final userId = currentUser!.id;
-        myRequests = await repo.getMyRequests(userId);
-        notifications = await repo.getNotifications(userId);
-        locationHistory = await repo.getLocationHistory(userId);
-        conversations = await repo.getConversations(userId);
-        blockedProfiles = await repo.getBlockedProfiles(userId);
-        reports = await repo.getReports();
-        await _loadRequestsForMyRides();
-      }
     } catch (e) {
-      error = e.toString();
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      // Core data failed; keep going with the per-user loads below so a
+      // single failed request never leaves the whole home empty.
+      error ??= e.toString();
     }
+    // Each per-user load is guarded on its own: one failing request
+    // (network blip, expired session) used to skip all the rest.
+    if (currentUser != null) {
+      final userId = currentUser!.id;
+      Future<void> load(Future<void> Function() f) async {
+        try {
+          await f();
+        } catch (e) {
+          error ??= e.toString();
+        }
+      }
+      await load(() async {
+        myRequests = await repo.getMyRequests(userId);
+      });
+      await load(() async {
+        notifications = await repo.getNotifications(userId);
+      });
+      await load(() async {
+        locationHistory = await repo.getLocationHistory(userId);
+      });
+      await load(() async {
+        conversations = await repo.getConversations(userId);
+      });
+      await load(() async {
+        blockedProfiles = await repo.getBlockedProfiles(userId);
+      });
+      await load(() async {
+        isAdmin = await repo.isCurrentUserAdmin();
+      });
+      await load(() async {
+        reports = await repo.getReports();
+      });
+      await load(() async {
+        await _loadRequestsForMyRides();
+      });
+    }
+    isLoading = false;
+    notifyListeners();
   }
 
   Future<void> _loadRequestsForMyRides() async {
@@ -133,19 +160,26 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> setMode(String m) async {
+  Future<bool> setMode(String m) async {
+    final user = currentUser;
+    if (user == null) return false;
+    final previousMode = mode;
     mode = m;
     notifyListeners();
-    final user = currentUser;
-    if (user == null) return;
     try {
       currentUser = await repo.updateProfile(user.copyWith(mode: m));
       _profileCache[currentUser!.id] = currentUser!;
       error = null;
+      return true;
     } catch (e) {
+      // Revert the local switch: leaving it changed would show the
+      // wrong home tab while the server still has the old mode.
+      mode = previousMode;
       error = e.toString();
+      return false;
+    } finally {
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   List<Ride> searchRides({String? from, String? to, DateTime? date}) {
@@ -189,6 +223,126 @@ class AppState extends ChangeNotifier {
     await init();
   }
 
+  // ---- Password login + admin-managed accounts ----
+
+  /// True when the signed-in user is an admin (loaded by init()).
+  bool isAdmin = false;
+
+  /// All profiles, for the admin screen (admins only).
+  List<Profile> allProfiles = [];
+
+  /// Ids of the current admins.
+  Set<String> adminIds = {};
+
+  Future<bool> _runBool(Future<void> Function() f) async {
+    try {
+      await f();
+      error = null;
+      return true;
+    } catch (e) {
+      error = e.toString();
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  /// Password sign-in: mobile number + password. On success the full
+  /// state is loaded; the caller checks `currentUser.mustResetPassword`
+  /// to decide whether the reset screen comes first.
+  Future<bool> passwordSignIn(String phone, String password) async {
+    try {
+      currentUser = await repo.signInWithPassword(
+        phone: phone,
+        password: password,
+      );
+      await init();
+      error = null;
+      return true;
+    } catch (e) {
+      error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Sets the signed-in user's own password and clears the forced-reset
+  /// flag, so the next sign-in goes straight to home.
+  Future<bool> resetOwnPassword(String newPassword) async {
+    final user = currentUser;
+    if (user == null) return false;
+    return _runBool(() async {
+      await repo.updateOwnPassword(newPassword);
+      currentUser = await repo.updateProfile(
+        user.copyWith(mustResetPassword: false),
+      );
+      if (currentUser != null) _profileCache[currentUser!.id] = currentUser!;
+    });
+  }
+
+  /// First-admin bootstrap: when no admin exists yet, the signed-in user
+  /// becomes the first admin and sets their password.
+  Future<bool> bootstrapAdmin(String password) async {
+    return _runBool(() async {
+      await repo.bootstrapAdmin(password: password);
+      await init();
+    });
+  }
+
+  Future<bool> loadAllProfiles() async {
+    try {
+      allProfiles = await repo.getAllProfiles();
+      adminIds = (await repo.getAdminUserIds()).toSet();
+      error = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> adminCreateUser({
+    required String name,
+    required String phone,
+    required String tempPassword,
+  }) async {
+    return _runBool(() async {
+      await repo.adminCreateUser(
+        name: name,
+        phone: phone,
+        tempPassword: tempPassword,
+      );
+      allProfiles = await repo.getAllProfiles();
+    });
+  }
+
+  Future<bool> adminSetPassword({
+    required String userId,
+    required String tempPassword,
+  }) async {
+    return _runBool(() async {
+      await repo.adminSetPassword(
+        userId: userId,
+        tempPassword: tempPassword,
+      );
+      allProfiles = await repo.getAllProfiles();
+    });
+  }
+
+  Future<bool> adminSetAdmin({
+    required String userId,
+    required bool makeAdmin,
+  }) async {
+    return _runBool(() async {
+      await repo.adminSetAdmin(userId: userId, makeAdmin: makeAdmin);
+      isAdmin = await repo.isCurrentUserAdmin();
+      allProfiles = await repo.getAllProfiles();
+      adminIds = (await repo.getAdminUserIds()).toSet();
+    });
+  }
+
   bool isBlocked(String userId) =>
       blockedProfiles.any((p) => p.id == userId);
 
@@ -222,81 +376,90 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateRide(Ride ride) async {
+  Future<bool> updateRide(Ride ride) async {
     try {
       final updated = await repo.updateRide(ride);
       final i = rides.indexWhere((r) => r.id == ride.id);
       if (i >= 0) rides[i] = updated;
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> resolveReport(String id, String status) async {
+  Future<bool> resolveReport(String id, String status) async {
     try {
       await repo.resolveReport(id, status);
       reports = await repo.getReports();
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> createRide(Ride ride) async {
+  Future<bool> createRide(Ride ride) async {
     try {
       final created = await repo.createRide(ride);
       rides.add(created);
       rides.sort((a, b) => a.travelDate.compareTo(b.travelDate));
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> cancelRide(String rideId) async {
+  Future<bool> cancelRide(String rideId) async {
     try {
       await repo.cancelRide(rideId);
       final i = rides.indexWhere((r) => r.id == rideId);
       if (i >= 0) rides[i] = rides[i].copyWith(status: 'cancelled');
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> completeRide(String rideId) async {
+  Future<bool> completeRide(String rideId) async {
     try {
       final i = rides.indexWhere((r) => r.id == rideId);
-      if (i < 0) return;
+      if (i < 0) return false;
       final updated = await repo.updateRide(
         rides[i].copyWith(status: 'completed'),
       );
       rides[i] = updated;
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> sendJoinRequest(String rideId, {String? message}) async {
+  Future<bool> sendJoinRequest(String rideId, {String? message}) async {
     final userId = currentUser?.id;
-    if (userId == null) throw StateError('not_signed_in');
+    if (userId == null) {
+      error = 'not_signed_in';
+      notifyListeners();
+      return false;
+    }
     try {
       final request = await repo.createRequest(
         rideId: rideId,
@@ -305,59 +468,67 @@ class AppState extends ChangeNotifier {
       );
       myRequests.add(request);
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> acceptRequest(String requestId) async {
+  Future<bool> acceptRequest(String requestId) async {
     try {
       await repo.acceptRequest(requestId);
       await refreshRides();
       await _loadRequestsForMyRides();
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> rejectRequest(String requestId) async {
+  Future<bool> rejectRequest(String requestId) async {
     try {
       await repo.rejectRequest(requestId);
       await _loadRequestsForMyRides();
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> withdrawRequest(String requestId) async {
+  Future<bool> withdrawRequest(String requestId) async {
     try {
       await repo.withdrawRequest(requestId);
       if (currentUser != null) {
         myRequests = await repo.getMyRequests(currentUser!.id);
       }
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> sendMessage(String conversationId, String body) async {
+  Future<bool> sendMessage(String conversationId, String body) async {
     final userId = currentUser?.id;
-    if (userId == null) throw StateError('not_signed_in');
+    if (userId == null) {
+      error = 'not_signed_in';
+      notifyListeners();
+      return false;
+    }
     try {
       final message = await repo.sendMessage(
         conversationId: conversationId,
@@ -366,9 +537,10 @@ class AppState extends ChangeNotifier {
       );
       messagesByConversation.putIfAbsent(conversationId, () => []).add(message);
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
@@ -412,12 +584,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Conversation> openConversation({
+  Future<Conversation?> openConversation({
     required String rideId,
     required String hostId,
   }) async {
     final userId = currentUser?.id;
-    if (userId == null) throw StateError('not_signed_in');
+    if (userId == null) {
+      error = 'not_signed_in';
+      notifyListeners();
+      return null;
+    }
     try {
       final conv = await repo.getOrCreateConversation(
         rideId: rideId,
@@ -433,44 +609,51 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       error = e.toString();
       notifyListeners();
-      rethrow;
+      return null;
     }
   }
 
-  Future<void> blockUser(String userId) async {
+  Future<bool> blockUser(String userId) async {
     final blockerId = currentUser?.id;
-    if (blockerId == null) return;
+    if (blockerId == null) return false;
     try {
       await repo.blockUser(blockerId: blockerId, blockedId: userId);
       blockedProfiles = await repo.getBlockedProfiles(blockerId);
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
+      return false;
+    } finally {
+      notifyListeners();
     }
-    notifyListeners();
   }
 
-  Future<void> unblockUser(String userId) async {
+  Future<bool> unblockUser(String userId) async {
     final blockerId = currentUser?.id;
-    if (blockerId == null) return;
+    if (blockerId == null) return false;
     try {
       await repo.unblockUser(blockerId: blockerId, blockedId: userId);
       blockedProfiles = await repo.getBlockedProfiles(blockerId);
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
+      return false;
+    } finally {
+      notifyListeners();
     }
-    notifyListeners();
   }
 
-  Future<void> submitReport(Report report) async {
+  Future<bool> submitReport(Report report) async {
     try {
       await repo.createReport(report);
       reports = await repo.getReports();
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
@@ -479,6 +662,12 @@ class AppState extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       await repo.signOut();
+      error = null;
+    } catch (e) {
+      error = e.toString();
+    } finally {
+      // Always clear local state, even if the server sign-out failed:
+      // the user asked to log out and must not stay "signed in" locally.
       currentUser = null;
       mode = 'member';
       myRequests = [];
@@ -489,16 +678,13 @@ class AppState extends ChangeNotifier {
       reports = [];
       blockedProfiles = [];
       locationHistory = [];
-      error = null;
-    } catch (e) {
-      error = e.toString();
+      notifyListeners();
     }
-    notifyListeners();
   }
 
-  Future<void> deleteAccount() async {
+  Future<bool> deleteAccount() async {
     final userId = currentUser?.id;
-    if (userId == null) return;
+    if (userId == null) return false;
     try {
       await repo.deleteAccount(userId);
       currentUser = null;
@@ -512,23 +698,25 @@ class AppState extends ChangeNotifier {
       blockedProfiles = [];
       locationHistory = [];
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> updateProfile(Profile p) async {
+  Future<bool> updateProfile(Profile p) async {
     try {
       currentUser = await repo.updateProfile(p);
       _profileCache[currentUser!.id] = currentUser!;
       mode = currentUser!.mode;
       error = null;
+      return true;
     } catch (e) {
       error = e.toString();
-      rethrow;
+      return false;
     } finally {
       notifyListeners();
     }

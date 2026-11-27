@@ -111,6 +111,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final user = state.currentUser;
     final upcoming = state.upcomingRidesForMe;
     final greeting = _greeting();
+    final filteredRides = _filteredRides;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
@@ -191,10 +192,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: _date ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 60)),
+                      initialDate: clampPickerDate(_date),
+                      firstDate: clampPickerDate(null),
+                      lastDate: clampPickerDate(null)
+                          .add(const Duration(days: 60)),
                     );
                     if (picked != null) setState(() => _date = picked);
                   },
@@ -287,7 +288,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         else if (state.error != null)
           HopErrorState(
               message: state.error!, onRetry: () => state.refreshRides())
-        else if (_filteredRides.isEmpty)
+        else if (filteredRides.isEmpty)
           const HopEmptyState(
             icon: Icons.directions_car_outlined,
             title: 'No rides yet',
@@ -295,7 +296,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 'No rides match that search. Try another place or day — or be the first to post one!',
           )
         else
-          ..._filteredRides,
+          ...filteredRides,
       ],
     );
   }
