@@ -125,10 +125,23 @@ class _SignupScreenState extends State<SignupScreen> {
     }
     setState(() => _busy = true);
     final mode = widget.prefill['mode'] as String? ?? 'member';
-    // In demo mode the picked local file is kept as a path; the avatar shown
-    // is the preset/sample URL or a file path handled by the avatar widget.
-    final avatar = _photoUrl ??
+    // A picked photo is uploaded to the avatars bucket first so the stored
+    // avatarUrl is a public URL every phone can load — a local file path
+    // would be meaningless on other users' phones and dies on reinstall.
+    // If the upload fails, fall back to the local path and keep going;
+    // the profile still gets created.
+    var avatar = _photoUrl ??
         (_photoPath != null ? _photoPath! : sampleAvatars.first);
+    if (_photoPath != null) {
+      try {
+        final uid = widget.state.repo.currentUserId ?? '';
+        avatar = await widget.state.repo
+            .uploadAvatar(uid, XFile(_photoPath!));
+      } catch (_) {
+        // Keep the local path as the avatar; the avatar widget falls back
+        // to initials if the file is ever missing.
+      }
+    }
     final profile = Profile(
       id: 'user-${DateTime.now().millisecondsSinceEpoch}',
       fullName: _nameController.text.trim(),
@@ -145,7 +158,10 @@ class _SignupScreenState extends State<SignupScreen> {
       await widget.state.repo.createProfile(profile);
       await widget.state.init();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Clear the whole auth stack: back from home must exit the app,
+        // never return to the phone/OTP screens.
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/home', (_) => false);
       }
     } catch (e) {
       setState(() => _busy = false);

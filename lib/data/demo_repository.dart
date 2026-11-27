@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models.dart';
@@ -91,6 +92,13 @@ class DemoRepository implements HopRepository {
 
   @override
   Future<Profile?> getCurrentProfile() async => _currentUser;
+
+  @override
+  String? get currentUserId => _currentUser?.id;
+
+  @override
+  Future<String> uploadAvatar(String userId, XFile file) async =>
+      file.path;
 
   @override
   Future<Profile> signInWithOtp({String? phone}) async {

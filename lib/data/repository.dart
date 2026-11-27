@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 import '../models.dart';
 
 abstract class HopRepository {
@@ -6,6 +8,14 @@ abstract class HopRepository {
   Stream<void> get changes;
 
   Future<Profile?> getCurrentProfile();
+
+  /// Id of the signed-in auth user, if any (live mode). Used to name the
+  /// avatar upload folder, which the storage policy ties to the auth uid.
+  String? get currentUserId;
+
+  /// Uploads a picked photo and returns the URL to store as the avatar.
+  /// Demo mode just keeps the local path.
+  Future<String> uploadAvatar(String userId, XFile file);
 
   /// Phone-only sign-in: Supabase sends a 6-digit OTP by SMS to the
   /// user's mobile number. No email sign-in, no WhatsApp.

@@ -26,7 +26,6 @@ Future<void> main() async {
   await state.init();
   runApp(HopAlongApp(state: state));
 }
-
 class HopAlongApp extends StatelessWidget {
   const HopAlongApp({super.key, required this.state});
 
@@ -38,7 +37,9 @@ class HopAlongApp extends StatelessWidget {
       title: 'HopAlong',
       theme: hopTheme(),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/',
+      // Already signed in with a saved profile: open straight into the
+      // app. Otherwise the welcome screen starts the one-time login flow.
+      initialRoute: state.currentUser != null ? '/home' : '/',
       onGenerateRoute: (settings) {
         final args = settings.arguments;
         switch (settings.name) {

@@ -45,6 +45,9 @@ class SupabaseRepository implements HopRepository {
   }
 
   @override
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  @override
   Future<Profile?> getCurrentProfile() async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
@@ -55,16 +58,11 @@ class SupabaseRepository implements HopRepository {
           .eq('id', user.id)
           .maybeSingle();
       final row = _row(data);
-      if (row == null) {
-        return Profile(
-          id: user.id,
-          fullName: (user.userMetadata?['full_name'] as String?) ?? '',
-          dob: DateTime(2000, 1, 1),
-          gender: '',
-          phone: user.phone ?? '',
-          email: user.email,
-        );
-      }
+      // No row yet means this signed-in user has not created a profile:
+      // return null so the caller routes them to the signup screen.
+      // (Never return a blank placeholder profile here — the home screens
+      // render the profile's name/photo and crash on an empty name.)
+      if (row == null) return null;
       return Profile.fromJson(row);
     } catch (_) {
       return null;
@@ -122,9 +120,16 @@ class SupabaseRepository implements HopRepository {
 
   @override
   Future<Profile> createProfile(Profile profile) async {
-    final toSave = profile.id.isEmpty
-        ? profile.copyWith(id: _client.auth.currentUser?.id ?? _uuid.v4())
-        : profile;
+    // The profile row's id must be the signed-in user's auth uid: it is
+    // the primary key and references auth.users(id). The signup screen
+    // passes a throwaway 'user-<timestamp>' id, which is not a uuid and
+    // would fail the insert — always prefer the real uid when signed in.
+    final uid = _client.auth.currentUser?.id;
+    final toSave = uid != null
+        ? profile.copyWith(id: uid)
+        : (profile.id.isEmpty
+            ? profile.copyWith(id: _uuid.v4())
+            : profile);
     final data = await _client
         .from('profiles')
         .upsert(toSave.toJson())
@@ -155,6 +160,7 @@ class SupabaseRepository implements HopRepository {
 
   /// Uploads an avatar image to the `avatars` bucket and returns its
   /// public URL.
+  @override
   Future<String> uploadAvatar(String userId, XFile file) async {
     final path = '$userId/avatar.jpg';
     await _client.storage.from('avatars').upload(

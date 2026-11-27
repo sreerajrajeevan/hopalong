@@ -37,7 +37,11 @@ class HopAvatar extends StatelessWidget {
   }
 
   String get _initials {
-    final parts = name.trim().split(RegExp(r'\s+'));
+    final trimmed = name.trim();
+    // An empty name must never crash: ''.split() yields [''], whose only
+    // element has no first character ("Bad state: No element").
+    if (trimmed.isEmpty) return '?';
+    final parts = trimmed.split(RegExp(r'\s+'));
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
     return (parts[0].characters.first + parts[1].characters.first)

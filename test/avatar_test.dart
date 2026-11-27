@@ -73,4 +73,20 @@ void main() {
         tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
     expect(avatar.backgroundImage, isA<NetworkImage>());
   });
+
+  testWidgets('empty name with no photo shows ? instead of crashing',
+      (WidgetTester tester) async {
+    // Regression: a signed-in user with no profile row yet used to reach
+    // the home screens with fullName '' — HopAvatar threw
+    // "Bad state: No element" and red-screened every tab.
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: HopAvatar(photoUrl: '', name: '')),
+    ));
+    await tester.pump();
+
+    final avatar =
+        tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
+    expect(avatar.backgroundImage, isNull);
+    expect(find.text('?'), findsOneWidget);
+  });
 }

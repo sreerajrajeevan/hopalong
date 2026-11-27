@@ -107,7 +107,10 @@ class _AuthScreenState extends State<AuthScreen> {
       }
       await widget.state.init();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Clear the whole auth stack: back from home must exit the app,
+        // never return to the phone/OTP screens.
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/home', (_) => false);
       }
     } catch (e) {
       setState(() {
