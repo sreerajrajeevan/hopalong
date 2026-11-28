@@ -120,6 +120,51 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, isAdmin: true });
   }
 
+  // Link the synthetic login email to a phone-only (OTP) account.
+  // Password sign-in looks the user up by email, so an account created
+  // by phone OTP has no email and can never sign in with a password
+  // until this runs. Allowed ONLY for an account whose email is still
+  // empty, so it is self-closing: once the email is set this can never
+  // run again for that user. The password arrives in the X-New-Password
+  // header and is re-set in the same call, so the pair always matches.
+  if (action === 'link-login-email') {
+    const phone = (payload.phone as string | undefined)?.trim();
+    const password = req.headers.get('X-New-Password');
+    if (!phone || digitsOnly(phone).length !== 12) {
+      return json({ error: 'Enter a valid 10-digit mobile number.' }, 400);
+    }
+    if (!password || password.length < 6) {
+      return json({ error: 'Password must be at least 6 characters.' }, 400);
+    }
+    const digits = digitsOnly(phone);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id,phone');
+    const profile = (profiles ?? []).find(
+      (p) => digitsOnly(p.phone ?? '') === digits,
+    );
+    if (!profile) {
+      return json({ error: 'No account for that number.' }, 404);
+    }
+    const { data: { user: target } } = await supabase.auth.admin
+      .getUserById(profile.id);
+    if (!target) {
+      return json({ error: 'No account for that number.' }, 404);
+    }
+    if (target.email) {
+      return json(
+        { error: 'This account already has a login email.' },
+        403,
+      );
+    }
+    const { error } = await supabase.auth.admin.updateUserById(
+      profile.id,
+      { email: loginEmail(phone), email_confirm: true, password },
+    );
+    if (error) return json({ error: error.message }, 400);
+    return json({ ok: true, email: loginEmail(phone) });
+  }
+
   // Who is calling? The JWT is verified against Auth, not trusted blind.
   const token = req.headers
     .get('Authorization')

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
@@ -47,7 +48,15 @@ class _HomeShellState extends State<HomeShell> {
             ? ['Home', 'My Rides', 'Chats', 'Profile']
             : ['Explore', 'My Trips', 'Chats', 'Profile'];
         final clamped = _index.clamp(0, pages.length - 1);
-        return Scaffold(
+        // Home is the root of the app: the back button exits the app
+        // instead of ever popping back to the welcome/login screen. The
+        // login screen only appears after an explicit logout.
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) SystemNavigator.pop();
+          },
+          child: Scaffold(
           appBar: AppBar(
             title: Text(titles[clamped]),
             actions: [
@@ -132,6 +141,7 @@ class _HomeShellState extends State<HomeShell> {
                   icon: Icon(Icons.person_outline_rounded),
                   label: 'Profile'),
             ],
+          ),
           ),
         );
       },

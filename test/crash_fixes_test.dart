@@ -2,6 +2,9 @@
 //
 // Every test here maps to a crash Sree reported on device:
 //  - editing/renaming a profile crashed when the save failed
+//  - renaming a profile showed the red screen on save: the edit dialog's
+//    TextEditingController was disposed while the dialog was still
+//    animating out ("used after being disposed")
 //  - the date picker crashed on the second tap (midnight vs now)
 //  - the gender dropdown crashed on a stored value outside the 4 options
 //  - any failed server action used to crash the app instead of showing
@@ -216,6 +219,37 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Edit profile'), findsWidgets);
       expect(find.byType(TextField), findsOneWidget);
+    });
+  });
+
+  group('widget: edit profile save', () {
+    // 2026-11-28: saving a new name showed the red screen on device.
+    // The dialog's TextEditingController was disposed the moment the
+    // dialog popped, while the text field was still animating out and
+    // rebuilding on it ("used after being disposed"). The dialog now
+    // owns its controller and disposes it only when it unmounts.
+    testWidgets('saving a new name does not throw', (tester) async {
+      final state = AppState(repo: DemoRepository());
+      await state.demoSignIn();
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: ProfileScreen(state: state))),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Edit profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit profile'));
+      await tester.pumpAndSettle();
+      // Type a new name (field keeps focus) then tap Save.
+      await tester.enterText(find.byType(TextField).first, 'New Name');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(state.currentUser?.fullName, 'New Name');
+      expect(find.text('Profile updated.'), findsOneWidget);
+      // Scroll the header back into view: the new name is on screen.
+      await tester.drag(find.byType(ListView), const Offset(0, 800));
+      await tester.pumpAndSettle();
+      expect(find.text('New Name'), findsOneWidget);
     });
   });
 

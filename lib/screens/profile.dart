@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../config.dart';
+import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/common.dart';
@@ -53,7 +54,7 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                     color: HopColors.peachSoft,
-                    borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(18)),
                 child: const Row(
                   children: [
                     Icon(Icons.info_outline_rounded,
@@ -214,63 +215,12 @@ class ProfileScreen extends StatelessWidget {
   Future<void> _editProfile(BuildContext context) async {
     final user = state.currentUser;
     if (user == null) return;
-    final name = TextEditingController(text: user.fullName);
-    // A stored gender outside the four options (old row, blank value)
-    // would make the dropdown throw on open — fall back to a valid one.
-    const genderOptions = [
-      'Female',
-      'Male',
-      'Non-binary',
-      'Prefer not to say',
-    ];
-    String gender =
-        genderOptions.contains(user.gender) ? user.gender : 'Prefer not to say';
-    final saved = await showDialog<bool>(
+    final result = await showDialog<_EditProfileResult>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: const Text('Edit profile'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration:
-                    const InputDecoration(labelText: 'Full name'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: gender,
-                items: const [
-                  DropdownMenuItem(value: 'Female', child: Text('Female')),
-                  DropdownMenuItem(value: 'Male', child: Text('Male')),
-                  DropdownMenuItem(
-                      value: 'Non-binary', child: Text('Non-binary')),
-                  DropdownMenuItem(
-                      value: 'Prefer not to say',
-                      child: Text('Prefer not to say')),
-                ],
-                onChanged: (v) => setLocal(() => gender = v ?? gender),
-                decoration: const InputDecoration(labelText: 'Gender'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel')),
-            ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Save')),
-          ],
-        ),
-      ),
+      builder: (_) => _EditProfileDialog(user: user),
     );
-    final newName = name.text.trim();
-    name.dispose();
-    if (saved != true) return;
+    if (result == null) return;
+    final newName = result.name.trim();
     if (newName.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -279,7 +229,7 @@ class ProfileScreen extends StatelessWidget {
       return;
     }
     final ok = await state.updateProfile(
-        user.copyWith(fullName: newName, gender: gender));
+        user.copyWith(fullName: newName, gender: result.gender));
     if (context.mounted) {
       if (ok) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -295,7 +245,7 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Notification preferences'),
         content: AnimatedBuilder(
           animation: state,
@@ -338,7 +288,7 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Blocked users'),
         content: AnimatedBuilder(
           animation: state,
@@ -379,7 +329,7 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Delete your account?'),
         content: const Text(
             'This removes your profile, rides, requests and messages. '
@@ -460,6 +410,93 @@ class _Tile extends StatelessWidget {
       trailing: trailing ??
           const Icon(Icons.chevron_right_rounded, color: HopColors.inkSoft),
       onTap: onTap,
+    );
+  }
+}
+
+/// What the edit-profile dialog hands back on Save (null on Cancel).
+class _EditProfileResult {
+  const _EditProfileResult({required this.name, required this.gender});
+
+  final String name;
+  final String gender;
+}
+
+/// Edit-profile dialog. It owns its [TextEditingController] so the
+/// controller lives exactly as long as the dialog's text field: disposing
+/// a controller while the dialog is still animating out crashes the app
+/// with a red screen ("used after being disposed").
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({required this.user});
+
+  final Profile user;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  // A stored gender outside the four options (old row, blank value)
+  // would make the dropdown throw on open — fall back to a valid one.
+  static const _genderOptions = [
+    'Female',
+    'Male',
+    'Non-binary',
+    'Prefer not to say',
+  ];
+
+  late final TextEditingController _name =
+      TextEditingController(text: widget.user.fullName);
+  late String _gender = _genderOptions.contains(widget.user.gender)
+      ? widget.user.gender
+      : 'Prefer not to say';
+
+  @override
+  void dispose() {
+    // Runs only when the dialog route is fully unmounted, so the text
+    // field is already gone by the time the controller is disposed.
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      title: const Text('Edit profile'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Full name'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _gender,
+            items: const [
+              DropdownMenuItem(value: 'Female', child: Text('Female')),
+              DropdownMenuItem(value: 'Male', child: Text('Male')),
+              DropdownMenuItem(
+                  value: 'Non-binary', child: Text('Non-binary')),
+              DropdownMenuItem(
+                  value: 'Prefer not to say',
+                  child: Text('Prefer not to say')),
+            ],
+            onChanged: (v) => setState(() => _gender = v ?? _gender),
+            decoration: const InputDecoration(labelText: 'Gender'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel')),
+        ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(_EditProfileResult(
+                name: _name.text, gender: _gender)),
+            child: const Text('Save')),
+      ],
     );
   }
 }
