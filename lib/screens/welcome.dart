@@ -86,8 +86,7 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       // Demo sign-in only exists in demo mode. In the live
-                      // app this button used to call verifyOtp with no
-                      // phone number and crash on every tap.
+                      // app this button is hidden entirely.
                       if (AppConfig.isDemoMode)
                         Center(
                           child: TextButton(

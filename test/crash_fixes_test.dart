@@ -247,8 +247,6 @@ void main() {
             '/home': (_) => const Scaffold(body: Text('Home loaded')),
             '/reset-password': (_) =>
                 const Scaffold(body: Text('Reset loaded')),
-            '/first-time-setup': (_) =>
-                const Scaffold(body: Text('Setup loaded')),
           },
         ),
       );

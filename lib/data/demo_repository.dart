@@ -100,26 +100,6 @@ class DemoRepository implements HopRepository {
   Future<String> uploadAvatar(String userId, XFile file) async =>
       file.path;
 
-  @override
-  Future<Profile> signInWithOtp({String? phone}) async {
-    _currentUser = demoUser;
-    _notify();
-    return demoUser;
-  }
-
-  @override
-  Future<Profile> verifyOtp({
-    required String code,
-    String? phone,
-  }) async {
-    if (code.length != 6 || int.tryParse(code) == null) {
-      throw const FormatException('Enter the 6-digit code.');
-    }
-    _currentUser = demoUser;
-    _notify();
-    return demoUser;
-  }
-
   // ---- Password login (admin-managed accounts) ----
 
   final Set<String> _adminIds = {};
@@ -207,11 +187,6 @@ class DemoRepository implements HopRepository {
       _adminIds.remove(userId);
     }
     _notify();
-  }
-
-  @override
-  Future<void> bootstrapAdmin({required String password}) async {
-    if (_currentUser != null) _adminIds.add(_currentUser!.id);
   }
 
   @override

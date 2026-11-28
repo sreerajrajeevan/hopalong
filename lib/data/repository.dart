@@ -17,14 +17,6 @@ abstract class HopRepository {
   /// Demo mode just keeps the local path.
   Future<String> uploadAvatar(String userId, XFile file);
 
-  /// Phone-only sign-in: Supabase sends a 6-digit OTP by SMS to the
-  /// user's mobile number. No email sign-in, no WhatsApp.
-  /// Kept only for the one-time first-time password setup; normal
-  /// sign-in is [signInWithPassword].
-  Future<Profile> signInWithOtp({String? phone});
-
-  Future<Profile> verifyOtp({required String code, String? phone});
-
   /// Password sign-in (admin-managed accounts): mobile number + password.
   /// The number is converted to a login email internally; the user never
   /// sees it.
@@ -64,11 +56,6 @@ abstract class HopRepository {
     required String userId,
     required bool makeAdmin,
   });
-
-  /// First-admin bootstrap: when no admin exists yet, the signed-in user
-  /// promotes themselves and sets their own password. Afterwards this
-  /// always fails.
-  Future<void> bootstrapAdmin({required String password});
 
   Future<Profile> createProfile(Profile profile);
 

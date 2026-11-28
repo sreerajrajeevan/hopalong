@@ -141,14 +141,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: const TextStyle(color: HopColors.danger)),
               ],
               const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context)
-                      .pushNamed('/first-time-setup'),
-                  child: const Text(
-                      'First time after the update? Set your password'),
-                ),
-              ),
               const Center(
                 child: Text(
                   'Forgot your password? Ask an admin to reset it for you.',

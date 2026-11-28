@@ -71,55 +71,6 @@ class SupabaseRepository implements HopRepository {
   }
 
   @override
-  Future<Profile> signInWithOtp({String? phone}) async {
-    if (phone == null) {
-      throw ArgumentError('Provide a phone number.');
-    }
-    // Phone SMS OTP via the provider configured in Supabase Auth
-    // (Phone provider). The 6-digit code arrives as an SMS.
-    await _client.auth.signInWithOtp(phone: phone);
-    // OTP not verified yet, so there is no signed-in user/profile.
-    // Return a placeholder carrying the contact detail so the UI can
-    // move to the verify step; verifyOtp returns the real profile.
-    final current = await getCurrentProfile();
-    return current ??
-        Profile(
-          id: '',
-          fullName: '',
-          dob: null,
-          gender: '',
-          phone: phone,
-          email: null,
-        );
-  }
-
-  @override
-  Future<Profile> verifyOtp({
-    required String code,
-    String? phone,
-  }) async {
-    if (phone == null) {
-      throw ArgumentError('Provide a phone number.');
-    }
-    await _client.auth.verifyOTP(
-      type: OtpType.sms,
-      token: code,
-      phone: phone,
-    );
-    final profile = await getCurrentProfile();
-    final user = _client.auth.currentUser;
-    return profile ??
-        Profile(
-          id: user?.id ?? '',
-          fullName: '',
-          dob: null,
-          gender: '',
-          phone: phone,
-          email: user?.email,
-        );
-  }
-
-  @override
   Future<Profile> signInWithPassword({
     required String phone,
     required String password,
@@ -231,14 +182,6 @@ class SupabaseRepository implements HopRepository {
       'action': 'set-admin',
       'userId': userId,
       'makeAdmin': makeAdmin,
-    });
-  }
-
-  @override
-  Future<void> bootstrapAdmin({required String password}) async {
-    await _manageUsers({
-      'action': 'bootstrap',
-      'password': password,
     });
   }
 

@@ -8,7 +8,6 @@ import 'screens/admin_screen.dart';
 import 'screens/auth.dart';
 import 'screens/chat_detail.dart';
 import 'screens/create_ride.dart';
-import 'screens/first_time_setup.dart';
 import 'screens/home_shell.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/reset_password.dart';
@@ -66,9 +65,6 @@ class HopAlongApp extends StatelessWidget {
           case '/reset-password':
             return MaterialPageRoute(
                 builder: (_) => ResetPasswordScreen(state: state));
-          case '/first-time-setup':
-            return MaterialPageRoute(
-                builder: (_) => FirstTimeSetupScreen(state: state));
           case '/admin':
             return MaterialPageRoute(
                 builder: (_) => AdminScreen(state: state));

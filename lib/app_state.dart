@@ -217,9 +217,13 @@ class AppState extends ChangeNotifier {
   }
 
   /// Demo-mode one-tap sign-in used by "Continue in demo" on Welcome.
-  /// In live mode this is never offered; it simply verifies a demo code.
+  /// In live mode this is never offered; it signs in the demo account
+  /// with the password login, the same as any other user.
   Future<void> demoSignIn() async {
-    await repo.verifyOtp(code: '123456');
+    await repo.signInWithPassword(
+      phone: '9876543210',
+      password: 'demo1234',
+    );
     await init();
   }
 
@@ -277,15 +281,6 @@ class AppState extends ChangeNotifier {
         user.copyWith(mustResetPassword: false),
       );
       if (currentUser != null) _profileCache[currentUser!.id] = currentUser!;
-    });
-  }
-
-  /// First-admin bootstrap: when no admin exists yet, the signed-in user
-  /// becomes the first admin and sets their password.
-  Future<bool> bootstrapAdmin(String password) async {
-    return _runBool(() async {
-      await repo.bootstrapAdmin(password: password);
-      await init();
     });
   }
 
