@@ -72,6 +72,54 @@ Deno.serve(async (req: Request) => {
   }
   const action = payload.action as string | undefined;
 
+  // Direct bootstrap: sets the first admin's password without a sign-in.
+  // Allowed ONLY while the admins table is empty, and only for a phone
+  // number that already has a profile. The new password arrives in the
+  // X-New-Password header, never in the body or the URL. Once the first
+  // admin exists this action is dead forever.
+  if (action === 'direct-bootstrap') {
+    const { data: adminRows } = await supabase
+      .from('admins')
+      .select('user_id');
+    if ((adminRows ?? []).length > 0) {
+      return json({ error: 'An admin already exists.' }, 403);
+    }
+    const phone = (payload.phone as string | undefined)?.trim();
+    const password = req.headers.get('X-New-Password');
+    if (!phone || digitsOnly(phone).length !== 12) {
+      return json({ error: 'Enter a valid 10-digit mobile number.' }, 400);
+    }
+    if (!password || password.length < 6) {
+      return json({ error: 'Password must be at least 6 characters.' }, 400);
+    }
+    const digits = digitsOnly(phone);
+    // Match in code, not in a filter: a '+' in a PostgREST filter value
+    // is decoded as a space, so phone lookups by E.164 string miss.
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id,phone');
+    const profile = (profiles ?? []).find(
+      (p) => digitsOnly(p.phone ?? '') === digits,
+    );
+    if (!profile) {
+      return json({ error: 'No account for that number.' }, 404);
+    }
+    const { error: insertError } = await supabase
+      .from('admins')
+      .insert({ user_id: profile.id });
+    if (insertError) return json({ error: insertError.message }, 400);
+    const { error: pwError } = await supabase.auth.admin.updateUserById(
+      profile.id,
+      { password },
+    );
+    if (pwError) return json({ error: pwError.message }, 400);
+    await supabase
+      .from('profiles')
+      .update({ must_reset_password: false })
+      .eq('id', profile.id);
+    return json({ ok: true, isAdmin: true });
+  }
+
   // Who is calling? The JWT is verified against Auth, not trusted blind.
   const token = req.headers
     .get('Authorization')
