@@ -154,7 +154,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: HopColors.peachSoft,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Text(
                     'Demo mode: any mobile number and any password '

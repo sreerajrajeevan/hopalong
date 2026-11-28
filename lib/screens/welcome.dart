@@ -140,7 +140,7 @@ class _ModeCard extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
@@ -150,7 +150,7 @@ class _ModeCard extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(18)),
+                    borderRadius: BorderRadius.circular(22)),
                 child: Icon(icon, color: color, size: 30),
               ),
               const SizedBox(width: 16),

@@ -192,7 +192,7 @@ class RideStatusChip extends StatelessWidget {
         label = 'Full';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration:
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Text(label,
@@ -325,23 +325,23 @@ class HopEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 76,
-              height: 76,
+              width: 84,
+              height: 84,
               decoration: const BoxDecoration(
                   color: HopColors.peachSoft, shape: BoxShape.circle),
-              child: Icon(icon, size: 34, color: HopColors.peachDeep),
+              child: Icon(icon, size: 36, color: HopColors.peachDeep),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(title,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium),
             if (subtitle != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(subtitle!,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium),

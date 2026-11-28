@@ -68,10 +68,10 @@ ThemeData hopTheme() {
     ),
     cardTheme: CardThemeData(
       color: HopColors.surface,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: const Color(0x1F2E2A26),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: HopColors.line),
+        borderRadius: BorderRadius.circular(28),
       ),
       margin: EdgeInsets.zero,
     ),
@@ -80,19 +80,19 @@ ThemeData hopTheme() {
       fillColor: HopColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: HopColors.line),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: HopColors.line),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: HopColors.sage, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: HopColors.danger),
       ),
       labelStyle: const TextStyle(color: HopColors.inkSoft),
@@ -105,7 +105,7 @@ ThemeData hopTheme() {
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
         textStyle: GoogleFonts.quicksand(fontWeight: FontWeight.w700),
       ),
@@ -116,7 +116,7 @@ ThemeData hopTheme() {
         side: const BorderSide(color: HopColors.sage, width: 1.5),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
         textStyle: GoogleFonts.quicksand(fontWeight: FontWeight.w700),
       ),
@@ -141,13 +141,19 @@ ThemeData hopTheme() {
       selectedItemColor: HopColors.sage,
       unselectedItemColor: HopColors.inkSoft,
       type: BottomNavigationBarType.fixed,
-      elevation: 8,
+      elevation: 0,
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: HopColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
     ),
     snackBarTheme: const SnackBarThemeData(
       backgroundColor: HopColors.ink,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
+        borderRadius: BorderRadius.all(Radius.circular(18)),
       ),
     ),
     datePickerTheme: const DatePickerThemeData(

@@ -146,7 +146,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: HopColors.sageSoft,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
@@ -179,7 +179,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: HopColors.peachSoft,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,8 +296,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                         ? HopColors.sage
                                         : HopColors.surface,
                                     borderRadius: BorderRadius.only(
-                                      topLeft: const Radius.circular(18),
-                                      topRight: const Radius.circular(18),
+                                      topLeft: const Radius.circular(22),
+                                      topRight: const Radius.circular(22),
                                       bottomLeft: Radius.circular(
                                           mine ? 18 : 4),
                                       bottomRight: Radius.circular(

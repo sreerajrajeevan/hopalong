@@ -24,7 +24,7 @@ Future<void> showReportDialog(BuildContext context, AppState state,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => AlertDialog(
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Report'),
         content: Column(
           mainAxisSize: MainAxisSize.min,

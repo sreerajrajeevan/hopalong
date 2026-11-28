@@ -40,7 +40,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
     return rides
         .map((ride) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 18),
               child: RideCard(
                 ride: ride,
                 state: widget.state,
@@ -83,7 +83,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
               color: HopColors.surface,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: HopColors.line),
             ),
             child: Column(
@@ -113,7 +113,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final greeting = _greeting();
     final filteredRides = _filteredRides;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       children: [
         Row(
           children: [
@@ -156,16 +156,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Where are you headed?',
                     style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _locationField(
                   controller: _fromController,
                   label: 'From',
@@ -176,7 +176,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         v, state.locationHistory);
                   }),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 _locationField(
                   controller: _toController,
                   label: 'To',
@@ -187,7 +187,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         locationSuggestions(v, state.locationHistory);
                   }),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 InkWell(
                   onTap: () async {
                     final picked = await showDatePicker(
@@ -219,7 +219,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () => setState(() {}),
                   icon: const Icon(Icons.search_rounded),
@@ -230,15 +230,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
         ),
         if (upcoming.isNotEmpty) ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           const SectionTitle(title: 'Your upcoming rides'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             height: 132,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: upcoming.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
               itemBuilder: (context, i) {
                 final ride = upcoming[i];
                 return InkWell(
@@ -246,10 +246,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       .pushNamed('/ride', arguments: ride.id),
                   child: Container(
                     width: 240,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: HopColors.sageSoft,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,9 +277,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
         const SectionTitle(title: 'Rides near you'),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (state.isLoading)
           const Padding(
             padding: EdgeInsets.all(32),

@@ -35,9 +35,9 @@ class RideCard extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -67,9 +67,9 @@ class RideCard extends StatelessWidget {
                   RideStatusChip(status: status),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               JourneyGraphic(from: ride.fromLocation, to: ride.toLocation),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -98,14 +98,14 @@ class RideCard extends StatelessWidget {
                 ],
               ),
               if (ride.notes.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(ride.notes,
                     style: Theme.of(context).textTheme.bodyMedium,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis),
               ],
               if (showJoinButton) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
@@ -146,7 +146,7 @@ class RideCard extends StatelessWidget {
         final controller = TextEditingController();
         return AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           title: const Text('Request to join'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -211,7 +211,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: HopColors.surfaceSoft,
         borderRadius: BorderRadius.circular(999),
